@@ -11,6 +11,7 @@ import { BrandSheet } from "@/components/brand-sheet";
 import { compact, postingWindow } from "@/components/format";
 import { displayName, useTrendNames } from "@/components/names";
 import { SampleVideos } from "@/components/sample-videos";
+import { PublishPanel } from "@/components/publish-panel";
 import { Button, ErrorNote, Skeleton, TopBar, WindowStrip } from "@/components/ui";
 import { ViralScorePanel } from "@/components/viral-score-panel";
 
@@ -138,6 +139,12 @@ export default function TrendPage() {
             {trend && (
               <section id="draft" className="mt-14 scroll-mt-20">
                 <ViralScorePanel trend={trend} />
+              </section>
+            )}
+
+            {trend && (
+              <section className="mt-10">
+                <PublishPanel trendId={trend.id} brief={brand ?? undefined} />
               </section>
             )}
           </div>

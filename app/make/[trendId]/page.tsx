@@ -8,6 +8,7 @@ import { getJSON, postJSON, session } from "@/components/api";
 import { useBrand } from "@/components/brand";
 import { FilmCard, FilmCardSkeleton } from "@/components/film-card";
 import { displayName, useTrendNames } from "@/components/names";
+import { PublishPanel } from "@/components/publish-panel";
 import { makeKey, type MakeState } from "@/components/session";
 import { Button, ErrorNote, Panel, Spinner, TopBar } from "@/components/ui";
 
@@ -180,6 +181,16 @@ export default function MakePage() {
             )}
           </Panel>
         </div>
+
+        {(state.guide || job?.status === "done") && (
+          <section className="mt-6">
+            <PublishPanel
+              trendId={trendId}
+              brief={brand ?? undefined}
+              concept={state.guide?.concept ?? job?.storyboard.map((s) => s.prompt).join(" ").slice(0, 500)}
+            />
+          </section>
+        )}
 
         <Panel className="mt-6 flex flex-wrap items-center justify-between gap-4 p-5">
           <div>

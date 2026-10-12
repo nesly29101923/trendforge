@@ -160,3 +160,45 @@ export const trendNamesSchema = {
   },
   required: ["trends"],
 };
+
+export const publishPlanSchema = {
+  type: "object",
+  properties: {
+    hashtagSet: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: { tag: str, role: { type: "string", enum: ["trend", "broad", "niche", "brand"] }, why: str },
+        required: ["tag", "role", "why"],
+      },
+    },
+    captions: {
+      type: "array",
+      items: { type: "object", properties: { style: str, text: str, why: str }, required: ["style", "text", "why"] },
+    },
+    firstComment: str,
+    coverText: str,
+    platforms: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          platform: { type: "string", enum: ["TikTok", "Instagram Reels", "YouTube Shorts"] },
+          title: str,
+          caption: str,
+          tips: strArr,
+        },
+        required: ["platform", "caption", "tips"],
+      },
+    },
+    timing: { type: "object", properties: { when: str, why: str }, required: ["when", "why"] },
+    firstHour: strArr,
+    avoid: strArr,
+    captionCheck: {
+      type: "object",
+      properties: { score: { type: "integer" }, verdict: str, fixes: strArr },
+      required: ["score", "verdict", "fixes"],
+    },
+  },
+  required: ["hashtagSet", "captions", "firstComment", "coverText", "platforms", "timing", "firstHour", "avoid"],
+} as const;
