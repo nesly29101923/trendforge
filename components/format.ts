@@ -1,4 +1,4 @@
-import type { Platform, Trend } from "@/lib/types";
+import type { Platform } from "@/lib/types";
 
 export const compact = (n: number) =>
   Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 1 }).format(n);
@@ -11,9 +11,6 @@ export function timeAgo(iso: string) {
   if (hours < 48) return `${hours} h ago`;
   return `${Math.round(hours / 24)} days ago`;
 }
-
-/** Rising trend with high momentum that few creators have jumped on yet. */
-export const isEarlySignalTrend = (t: Trend) => t.stage === "rising" && t.momentumScore >= 60 && t.videoCount <= 8;
 
 export const platformLabel: Record<Platform, string> = {
   tiktok: "TikTok",

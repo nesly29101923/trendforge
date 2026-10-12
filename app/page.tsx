@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { getJSON, postJSON } from "@/components/api";
-import { compact, isEarlySignalTrend, timeAgo } from "@/components/format";
+import { compact, timeAgo } from "@/components/format";
+import { isEarlySignal } from "@/lib/trends";
 import { TrendCard, TrendCardSkeleton } from "@/components/trend-card";
 import { Chip, ErrorBox, Spinner } from "@/components/ui";
 import type { Trend } from "@/lib/types";
@@ -56,7 +57,7 @@ export default function TrendRadar() {
   }, [trends, filter]);
 
   const updatedAt = trends?.reduce<string | null>((max, t) => (!max || t.updatedAt > max ? t.updatedAt : max), null);
-  const earlyCount = trends?.filter(isEarlySignalTrend).length ?? 0;
+  const earlyCount = trends?.filter(isEarlySignal).length ?? 0;
   const totalPlays = trends?.reduce((s, t) => s + t.totalPlays, 0) ?? 0;
 
   return (

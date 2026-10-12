@@ -3,7 +3,7 @@ import type { BrandBrief, Trend, TrendAnalysis, VideoJob } from "./types";
 
 export type Storyboard = VideoJob["storyboard"];
 
-const MODEL = "gemini-2.5-flash";
+const MODEL = process.env.GEMINI_MODEL || "gemini-flash-latest";
 
 const schema = {
   type: Type.OBJECT,

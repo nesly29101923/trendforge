@@ -6,7 +6,8 @@ import { useParams } from "next/navigation";
 import { AnalysisSkeleton, AnalysisView } from "@/components/analysis-view";
 import { getJSON, postJSON } from "@/components/api";
 import { BriefForm } from "@/components/brief-form";
-import { compact, isEarlySignalTrend } from "@/components/format";
+import { compact } from "@/components/format";
+import { isEarlySignal } from "@/lib/trends";
 import { SampleVideos } from "@/components/sample-videos";
 import { EarlySignalBadge, ErrorBox, MomentumBar, PlatformTags, Skeleton, StageBadge } from "@/components/ui";
 import type { Trend, TrendAnalysis } from "@/lib/types";
@@ -80,7 +81,7 @@ export default function TrendDetail() {
           <div>
             <div className="mb-3 flex flex-wrap items-center gap-2">
               <StageBadge stage={trend.stage} />
-              {isEarlySignalTrend(trend) && <EarlySignalBadge />}
+              {isEarlySignal(trend) && <EarlySignalBadge />}
               <PlatformTags platforms={trend.platforms} />
             </div>
             <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">{trend.title}</h1>

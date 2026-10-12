@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Trend } from "@/lib/types";
-import { compact, isEarlySignalTrend } from "./format";
+import { isEarlySignal } from "@/lib/trends";
+import { compact } from "./format";
 import { EarlySignalBadge, MomentumBar, PlatformTags, StageBadge } from "./ui";
 
 const typeLabel: Record<Trend["type"], string> = {
@@ -40,7 +41,7 @@ export function TrendCard({ trend, rank }: { trend: Trend; rank: number }) {
       <div className="flex min-w-0 flex-1 flex-col gap-2 sm:p-4">
         <div className="flex flex-wrap items-center gap-1.5">
           <StageBadge stage={trend.stage} />
-          {isEarlySignalTrend(trend) && <EarlySignalBadge />}
+          {isEarlySignal(trend) && <EarlySignalBadge />}
         </div>
         <h3 className="line-clamp-2 font-semibold leading-snug">{trend.title}</h3>
         {trend.soundTitle && (
