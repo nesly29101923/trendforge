@@ -114,3 +114,34 @@ export const filmGuideSchema = {
     "postingTips",
   ],
 };
+
+export const viralScoreSchema = {
+  type: "object",
+  properties: {
+    score: { type: "integer" },
+    scoreAfterFixes: { type: "integer" },
+    verdict: str,
+    breakdown: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: { criterion: str, score: { type: "integer" }, note: str },
+        required: ["criterion", "score", "note"],
+      },
+    },
+    fixes: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          priority: { type: "string", enum: ["high", "medium", "low"] },
+          timecode: str,
+          fix: str,
+          impact: str,
+        },
+        required: ["priority", "fix", "impact"],
+      },
+    },
+  },
+  required: ["score", "scoreAfterFixes", "verdict", "breakdown", "fixes"],
+} as const;

@@ -35,3 +35,6 @@ export const session = {
     } catch {}
   },
 };
+
+export const postForm = <T>(url: string, form: FormData) =>
+  fetch(url, { method: "POST", body: form }).then((r) => parse<T>(r));

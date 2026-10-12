@@ -102,3 +102,17 @@ export async function trendMedia(trend: Trend): Promise<{ parts: Part[]; kind: "
 
   return { parts: [], kind: "none" };
 }
+
+/** Inline or upload a user-provided video (e.g. a draft ad) so Gemini can watch it. */
+export async function videoPartFromBlob(blob: Blob, mimeType: string): Promise<Part> {
+  const buf = Buffer.from(await blob.arrayBuffer());
+  if (buf.byteLength <= INLINE_LIMIT) return createPartFromBase64(buf.toString("base64"), mimeType);
+  let file = await ai().files.upload({ file: blob, config: { mimeType } });
+  const deadline = Date.now() + 60_000;
+  while (file.state === FileState.PROCESSING && Date.now() < deadline) {
+    await new Promise((r) => setTimeout(r, 2_000));
+    file = await ai().files.get({ name: file.name! });
+  }
+  if (file.state !== FileState.ACTIVE || !file.uri) throw new Error(`Gemini file not ready (${file.state})`);
+  return createPartFromUri(file.uri, file.mimeType ?? mimeType);
+}

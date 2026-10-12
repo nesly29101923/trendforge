@@ -9,6 +9,7 @@ import { BriefForm } from "@/components/brief-form";
 import { compact } from "@/components/format";
 import { isEarlySignal } from "@/lib/trends";
 import { SampleVideos } from "@/components/sample-videos";
+import { ViralScorePanel } from "@/components/viral-score-panel";
 import { EarlySignalBadge, ErrorBox, MomentumBar, PlatformTags, Skeleton, StageBadge } from "@/components/ui";
 import type { Trend, TrendAnalysis } from "@/lib/types";
 
@@ -140,6 +141,12 @@ export default function TrendDetail() {
       </section>
 
       {trend && <BriefForm trend={trend} analysis={analysis} />}
+
+      {trend && (
+        <section className="mt-6">
+          <ViralScorePanel trend={trend} />
+        </section>
+      )}
     </main>
   );
 }

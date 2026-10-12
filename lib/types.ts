@@ -109,3 +109,13 @@ export interface VideoJob {             // Option B
   thumbnailUrl?: string;
   error?: string;
 }
+
+export interface ViralScore {
+  trendId: string;
+  score: number;                         // 0–100, the draft as uploaded
+  scoreAfterFixes: number;               // 0–100, if every fix is applied
+  verdict: string;                       // one sentence
+  breakdown: { criterion: string; score: number; note: string }[];   // each 0–10
+  fixes: { priority: "high" | "medium" | "low"; timecode?: string; fix: string; impact: string }[];
+  expectedViews: { before: { low: number; high: number }; after: { low: number; high: number } };
+}

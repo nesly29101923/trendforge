@@ -1,6 +1,7 @@
 # TrendForge — AI Short-Video Trend Engine for Advertisers
 
 > Working name. Hackathon build at Slush (Manus event). **Time budget: 4 hours. Team: 2 developers.**
+> **Status 12 Oct, 12:30:** WS0–WS5 merged on `main` (Dev 2 + Claude as Dev 1; Manus dropped for speed). Viral Score added (§14). API contract in §13.
 > This README is the single source of truth for every AI agent working in parallel. Read §0–§4 before writing any code. Do not change the shared contracts in §4 without telling the team.
 
 ---
@@ -567,8 +568,10 @@ All routes return JSON. Errors: `{ error: string }` with status 4xx/5xx.
 | GET | `/api/trends` | — | `Trend[]` sorted by momentum | ✅ WS1 |
 | GET | `/api/trends/[id]` | — | `Trend` | ✅ WS1 |
 | POST | `/api/trends/refresh` | `{ queries?: string[] }` | `Trend[]` (runs Apify, 1–4 min) | ✅ WS1 |
-| POST | `/api/trends/[id]/analyze` | — | `TrendAnalysis` | WS2 |
-| POST | `/api/create/guide` | `{ trendId, brief: BrandBrief }` | `FilmGuide` | WS3 |
+| GET | `/api/trends/[id]/analyze` | — | cached `TrendAnalysis` or 404 | ✅ |
+| POST | `/api/trends/[id]/analyze` | — | `TrendAnalysis` (Gemini watches the top video; falls back to cover image, then metadata) | ✅ |
+| POST | `/api/create/guide` | `{ trendId, brief: BrandBrief }` | `FilmGuide` | ✅ |
+| POST | `/api/score` | multipart `video`, `trendId`, `brandName?`, `product?` | `ViralScore` | ✅ |
 | POST | `/api/create/video/upload` | multipart `file` (image ≤10 MB) | `{ url }` → put in `brief.productImageUrl` | ✅ WS4 |
 | POST | `/api/create/video` | `{ trendId or trend, brief: BrandBrief, analysis?, quality?: "fast" \| "hero" }` | `VideoJob` (status `queued`) | ✅ WS4 |
 | GET | `/api/create/video/[jobId]` | — | `VideoJob` without `storyboard`; poll every 3 s until `done` / `error` | ✅ WS4 |
@@ -578,3 +581,15 @@ Notes:
 - Video: one clip per job. `fast` = Kling 2.5 Turbo Pro, 10 s, ~$0.70. `hero` = Veo 3.1 Fast, 8 s 720p with native audio, ~$1.20. With a product image, Kling image-to-video is used (output follows the image's aspect ratio, so upload a 9:16 image). The jobId is self-contained (encodes the fal request), so polling works on any serverless instance.
 - Seed mode: if `seed/video-demo.json` (a `VideoJob` with `status: "done"`) exists, `POST /api/create/video` returns it.
 - Analysis cache: WS2 must store analyses as `Record<trendId, TrendAnalysis>` under the name `analyses` via `lib/store.ts` (`writeData("analyses", …)`), because the video route reads them from there.
+
+---
+
+## 14. Viral Score (the "more views" outcome)
+
+The advertiser uploads a **draft video** on a trend page → Gemini watches it against that trend's analysis and returns:
+- `score` 0–100 now, `scoreAfterFixes` 0–100 if every fix is applied
+- 7 criteria scored 0–10: hook, trend fidelity, beat sync, retention/loop, visual quality, brand integration, CTA & caption
+- prioritised fixes with timecodes and expected impact
+- **expected views before vs after**: benchmark = median plays of the trend's top videos, scaled by `0.05 + 1.2 × (score/100)²`, shown as a ±50 % range. The jump from "before" to "after" is the stage moment.
+
+Large uploads: Vercel caps request bodies at ~4.5 MB, so **demo the Viral Score from `npm run dev` on the laptop** (no cap, up to 100 MB) or keep demo drafts under 4 MB.
