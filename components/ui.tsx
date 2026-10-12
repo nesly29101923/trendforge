@@ -51,6 +51,15 @@ export function Panel({ children, className }: { children: React.ReactNode; clas
   return <section className={cx("rounded-2xl border border-line bg-surface", className)}>{children}</section>;
 }
 
+export function SectionTitle({ icon, children }: { icon?: string; children: React.ReactNode }) {
+  return (
+    <h3 className="mb-2 flex items-center gap-2 text-sm font-medium text-muted">
+      {icon && <span aria-hidden>{icon}</span>}
+      {children}
+    </h3>
+  );
+}
+
 export function ErrorNote({ message, onRetry }: { message: string; onRetry?: () => void }) {
   return (
     <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-urgent/25 bg-urgent-soft px-4 py-3 text-sm text-ink">

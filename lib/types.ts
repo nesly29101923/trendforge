@@ -147,6 +147,8 @@ export interface CaptionInsights {
 
 export interface PublishPlan {
   trendId: string;
+  contentSummary?: string;      // what the AI saw in the uploaded video
+  hashtagLine: string;          // ready-to-paste: "#a #b #c"
   hashtagSet: { tag: string; role: "trend" | "broad" | "niche" | "brand"; why: string }[];
   captions: { style: string; text: string; why: string }[];
   firstComment: string;

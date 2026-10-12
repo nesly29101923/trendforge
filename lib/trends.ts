@@ -5,6 +5,9 @@ const GENERIC_TAGS = new Set([
   "tiktok", "explore", "explorepage", "parati", "xyzbca", "capcut",
 ]);
 
+const FILLER = /^(fy+p+|foryou|parati|viral|trending|xyz)/;
+const isGeneric = (tag: string) => GENERIC_TAGS.has(tag) || FILLER.test(tag);
+
 const HOUR = 3_600_000;
 const MAX_TRENDS = 12;
 
@@ -61,7 +64,7 @@ function cluster(videos: RawVideo[]): Cluster[] {
     if (used.has(v.id)) continue;
     for (const raw of v.hashtags) {
       const tag = raw.toLowerCase().replace(/^#/, "");
-      if (!tag || GENERIC_TAGS.has(tag)) continue;
+      if (!tag || isGeneric(tag)) continue;
       byTag.set(tag, [...(byTag.get(tag) ?? []), v]);
     }
   }
@@ -107,7 +110,7 @@ export function buildTrends(videos: RawVideo[], now = Date.now()): Trend[] {
       const stage: TrendStage =
         s.recency > 0.5 && saturation < 0.5 ? "rising" : velocity >= 0.5 && saturation >= 0.5 ? "peaking" : "fading";
       const hashtags = [...new Set(c.videos.flatMap((v) => v.hashtags.map((h) => h.toLowerCase())))]
-        .filter((h) => !GENERIC_TAGS.has(h))
+        .filter((h) => !isGeneric(h))
         .slice(0, 8);
       const trend: Trend = {
         id: slug(c.key),

@@ -11,6 +11,7 @@ import { BrandSheet } from "@/components/brand-sheet";
 import { compact, postingWindow } from "@/components/format";
 import { displayName, useTrendNames } from "@/components/names";
 import { SampleVideos } from "@/components/sample-videos";
+import { TrendHashtagsCard } from "@/components/trend-hashtags";
 import { PublishPanel } from "@/components/publish-panel";
 import { Button, ErrorNote, Skeleton, TopBar, WindowStrip } from "@/components/ui";
 import { ViralScorePanel } from "@/components/viral-score-panel";
@@ -137,6 +138,12 @@ export default function TrendPage() {
                 <AnalysisSkeleton />
               )}
             </section>
+
+            {trend && (
+              <section className="mt-14">
+                <TrendHashtagsCard trendId={trend.id} />
+              </section>
+            )}
 
             {trend && (
               <section id="draft" className="mt-14 scroll-mt-20">

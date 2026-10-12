@@ -571,6 +571,8 @@ All routes return JSON. Errors: `{ error: string }` with status 4xx/5xx.
 | GET | `/api/trends/[id]/analyze` | — | cached `TrendAnalysis` or 404 | ✅ |
 | POST | `/api/trends/[id]/analyze` | — | `TrendAnalysis` (Gemini watches the top video; falls back to cover image, then metadata) | ✅ |
 | POST | `/api/create/guide` | `{ trendId, brief: BrandBrief }` | `FilmGuide` | ✅ |
+| GET | `/api/trends/[id]/hashtags` | — | `HashtagStat[]` (instant, data only) | ✅ |
+| POST | `/api/trends/[id]/hashtags` | — | `TrendHashtags` (AI pick + caption + tip, cached per trend) | ✅ |
 | POST | `/api/publish` | `{ trendId, brief, draftCaption?, draftHashtags?, concept? }` | `{ plan: PublishPlan, stats: HashtagStat[], insights: CaptionInsights }` | ✅ |
 | POST | `/api/score` | multipart `video`, `trendId`, `brandName?`, `product?` | `ViralScore` | ✅ |
 | POST | `/api/create/video/upload` | multipart `file` (image ≤10 MB) | `{ url }` → put in `brief.productImageUrl` | ✅ WS4 |
@@ -605,3 +607,11 @@ Shown on every trend page and on both result pages (after a Film Guide or an AI 
 2. **Caption patterns, no AI**: from the best-performing videos: median caption length, median hashtag count, share that ask a question / use emoji / have a CTA, and the UTC hours the top videos were posted.
 3. **AI posting plan** (`lib/publish.ts`, Gemini, fed only the real numbers above): a 4–7 tag set with a role and a data-backed reason for each, 3 caption variants, a pinned first comment, cover text, per-platform versions (TikTok, Reels, Shorts with a searchable title), when to post, a first-hour engagement checklist and what to avoid.
 4. **Caption check**: if the user pastes their own caption/hashtags, it is scored 0–100 with fixes.
+
+---
+
+## 16. Recommended hashtags (automatic, per trend)
+
+As soon as a trend is opened, a card at the top of the trend page shows 6–8 recommended hashtags for posting a video in that trend, with no form and no button:
+roles `trend` / `broad` / `niche` / `community`, a one-line reason each (citing today's scraped numbers), a ready caption, a posting tip and "Copy caption + hashtags".
+Data ranking is instant (`GET`), the AI pick follows in a few seconds (`POST`, cached in `data/trend-hashtags.json`). Filler tags (fyp, viral, trending…) are filtered in code.

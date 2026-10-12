@@ -1,19 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { BrandBrief, CaptionInsights, HashtagStat, PublishPlan } from "@/lib/types";
-import { postJSON } from "./api";
+import { postForm } from "./api";
 import { compact } from "./format";
-import { cx, ErrorNote, Panel, Spinner } from "./ui";
-
-function SectionTitle({ icon, children }: { icon?: string; children: React.ReactNode }) {
-  return (
-    <h3 className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-muted">
-      {icon && <span aria-hidden className="text-sm">{icon}</span>}
-      {children}
-    </h3>
-  );
-}
+import { cx, ErrorNote, Panel, SectionTitle, Spinner } from "./ui";
 
 const BRIEF_KEY = "trendforge:brief";
 
@@ -26,7 +17,7 @@ const ROLE = {
   brand: "bg-canvas text-ink ring-line",
 };
 
-const STEPS = ["Ranking hashtags by real reach…", "Studying the top captions…", "Writing your captions…", "Planning the first hour…"];
+const STEPS = ["Uploading your video…", "AI is watching your video…", "Ranking hashtags by real reach…", "Writing your caption…", "Planning how to post it…"];
 
 const inputClass =
   "w-full rounded-xl border border-line bg-canvas px-3.5 py-2.5 text-sm outline-none transition placeholder:text-muted/60 focus:border-accent/60 focus:ring-2 focus:ring-accent/20";
@@ -34,13 +25,16 @@ const inputClass =
 function savedBrief(): BrandBrief | null {
   try {
     const b = JSON.parse(localStorage.getItem(BRIEF_KEY) ?? "null");
-    return b?.brandName && b?.product ? b : null;
+    return b?.brandName ? b : null;
   } catch {
     return null;
   }
 }
 
 export function PublishPanel({ trendId, brief, concept }: { trendId: string; brief?: BrandBrief; concept?: string }) {
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [file, setFile] = useState<File | null>(null);
+  const [preview, setPreview] = useState<string | null>(null);
   const [draftCaption, setDraftCaption] = useState("");
   const [draftHashtags, setDraftHashtags] = useState("");
   const [result, setResult] = useState<Result | null>(null);
@@ -49,22 +43,32 @@ export function PublishPanel({ trendId, brief, concept }: { trendId: string; bri
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!file) return;
+    const url = URL.createObjectURL(file);
+    setPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [file]);
+
+  useEffect(() => {
     if (!busy) return;
-    setStep(0);
-    const id = setInterval(() => setStep((s) => Math.min(s + 1, STEPS.length - 1)), 3500);
+    setStep(file ? 0 : 2);
+    const id = setInterval(() => setStep((s) => Math.min(s + 1, STEPS.length - 1)), 4000);
     return () => clearInterval(id);
-  }, [busy]);
+  }, [busy, file]);
 
   async function run() {
-    const b = brief ?? savedBrief();
-    if (!b) {
-      setError("Fill in your brand name and product in the brand brief above first.");
-      return;
-    }
     setBusy(true);
     setError(null);
     try {
-      setResult(await postJSON<Result>("/api/publish", { trendId, brief: b, draftCaption, draftHashtags, concept }));
+      const form = new FormData();
+      form.append("trendId", trendId);
+      const b = brief ?? savedBrief();
+      if (b) form.append("brief", JSON.stringify(b));
+      if (file) form.append("video", file);
+      if (draftCaption) form.append("draftCaption", draftCaption);
+      if (draftHashtags) form.append("draftHashtags", draftHashtags);
+      if (concept) form.append("concept", concept);
+      setResult(await postForm<Result>("/api/publish", form));
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -74,31 +78,67 @@ export function PublishPanel({ trendId, brief, concept }: { trendId: string; bri
 
   return (
     <Panel className="relative overflow-hidden p-5 sm:p-6">
-      <SectionTitle icon="🚀">Post Optimizer</SectionTitle>
-      <h2 className="text-2xl font-bold tracking-tight">Hashtags, caption & how to post it</h2>
+            <SectionTitle icon="🚀">Share your video</SectionTitle>
+      <h2 className="text-2xl font-bold tracking-tight">Get hashtags & a caption for your video</h2>
       <p className="mt-1 text-sm text-muted">
-        Ranked on today&apos;s real scraped data: which hashtags actually reach people, what the top captions have in common,
-        and a posting plan for TikTok, Reels and Shorts. Paste your own caption to get it scored.
+        Upload the video you made for this trend. AI watches it and picks the hashtags that reach the most people today
+        (ranked on real scraped data), writes your caption, and tells you when and how to post it.
       </p>
 
-      <div className="mt-5 grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
-        <label className="block">
-          <span className="mb-1.5 block text-xs font-medium text-muted">Your caption (optional)</span>
-          <input className={inputClass} value={draftCaption} onChange={(e) => setDraftCaption(e.target.value)} placeholder="POV: your oat milk finally froths…" />
-        </label>
-        <label className="block">
-          <span className="mb-1.5 block text-xs font-medium text-muted">Your hashtags (optional)</span>
-          <input className={inputClass} value={draftHashtags} onChange={(e) => setDraftHashtags(e.target.value)} placeholder="#coffee #latteart" />
-        </label>
-        <button
-          type="button"
-          onClick={run}
-          disabled={busy}
-          className="flex h-11 items-center justify-center gap-2 rounded-[10px] bg-ink px-5 font-semibold text-white hover:bg-black disabled:opacity-60"
-        >
-          {busy && <Spinner />}
-          {busy ? STEPS[step] : result ? "↻ Rebuild plan" : "Build posting plan"}
-        </button>
+      <div className="mt-5 grid gap-5 md:grid-cols-[200px_1fr]">
+        <div>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="video/*"
+            hidden
+            onChange={(e) => {
+              setResult(null);
+              setFile(e.target.files?.[0] ?? null);
+            }}
+          />
+          <button
+            type="button"
+            onClick={() => fileRef.current?.click()}
+            className="relative grid aspect-[9/16] w-full place-items-center overflow-hidden rounded-2xl border border-dashed border-line bg-canvas text-center transition hover:border-ink/40"
+          >
+            {preview ? (
+              <video src={preview} muted loop autoPlay playsInline className="absolute inset-0 h-full w-full object-cover" />
+            ) : (
+              <span className="px-4 text-sm text-muted">
+                <span className="mb-2 block text-3xl">⬆</span>
+                Upload your video
+                <span className="mt-1 block text-xs">MP4 / MOV, vertical</span>
+              </span>
+            )}
+          </button>
+          {file && (
+            <button type="button" onClick={() => fileRef.current?.click()} className="mt-2 w-full text-xs text-muted hover:text-ink">
+              Change video
+            </button>
+          )}
+        </div>
+
+        <div className="flex flex-col gap-3">
+          <label className="block">
+            <span className="mb-1.5 block text-xs font-medium text-muted">Already have a caption? (optional, we&apos;ll score it)</span>
+            <input className={inputClass} value={draftCaption} onChange={(e) => setDraftCaption(e.target.value)} placeholder="POV: your oat milk finally froths…" />
+          </label>
+          <label className="block">
+            <span className="mb-1.5 block text-xs font-medium text-muted">Your hashtags (optional)</span>
+            <input className={inputClass} value={draftHashtags} onChange={(e) => setDraftHashtags(e.target.value)} placeholder="#coffee #latteart" />
+          </label>
+          <button
+            type="button"
+            onClick={run}
+            disabled={busy}
+            className="mt-auto flex h-11 items-center justify-center gap-2 rounded-[10px] bg-ink px-5 font-semibold text-white hover:bg-black disabled:opacity-60"
+          >
+            {busy && <Spinner />}
+            {busy ? STEPS[step] : result ? "↻ Regenerate" : file ? "Get my hashtags & caption" : "Get hashtags & caption (without video)"}
+          </button>
+          {!file && <p className="text-xs text-muted">Tip: upload your video for hashtags that match what&apos;s actually in it.</p>}
+        </div>
       </div>
 
       {error && (
@@ -113,9 +153,25 @@ export function PublishPanel({ trendId, brief, concept }: { trendId: string; bri
 
 function PlanView({ r }: { r: Result }) {
   const { plan, stats, insights } = r;
-  const hashtagLine = plan.hashtagSet.map((h) => `#${h.tag}`).join(" ");
+  const hashtagLine = plan.hashtagLine || plan.hashtagSet.map((h) => `#${h.tag}`).join(" ");
+  const best = plan.captions[0];
   return (
     <div className="mt-6 space-y-4">
+      {plan.contentSummary && (
+        <p className="rounded-xl bg-canvas px-4 py-3 text-sm ring-1 ring-line">
+          <span className="text-muted">👀 AI saw: </span>
+          {plan.contentSummary}
+        </p>
+      )}
+
+      <div className="rounded-2xl bg-accent-soft p-5 ring-1 ring-line">
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <span className="text-xs font-semibold uppercase tracking-[0.14em] text-muted">Ready to paste</span>
+          <CopyButton text={`${best ? `${best.text}\n\n` : ""}${hashtagLine}`} label="Copy caption + hashtags" />
+        </div>
+        {best && <p className="text-lg leading-relaxed">{best.text}</p>}
+        <p className="mt-2 text-lg font-semibold leading-relaxed text-accent">{hashtagLine}</p>
+      </div>
       {plan.captionCheck && (
         <div className="rounded-2xl bg-accent-soft p-4 ring-1 ring-line">
           <div className="flex items-center gap-3">
@@ -132,7 +188,7 @@ function PlanView({ r }: { r: Result }) {
       )}
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <Block icon="#️⃣" title="Use these hashtags" copy={hashtagLine}>
+        <Block icon="#️⃣" title="Why these hashtags" copy={hashtagLine}>
           <ul className="space-y-2">
             {plan.hashtagSet.map((h) => (
               <li key={h.tag} className="flex gap-2 text-sm">
@@ -249,7 +305,7 @@ function PlanView({ r }: { r: Result }) {
 function Block({ icon, title, copy, children }: { icon: string; title: string; copy?: string; children: React.ReactNode }) {
   return (
     <div className="rounded-2xl bg-canvas p-4 ring-1 ring-line">
-      <div className="mb-3 flex items-center justify-between gap-2">
+      <div className="flex items-start justify-between gap-2">
         <SectionTitle icon={icon}>{title}</SectionTitle>
         {copy && <CopyButton text={copy} />}
       </div>
@@ -258,7 +314,7 @@ function Block({ icon, title, copy, children }: { icon: string; title: string; c
   );
 }
 
-function CopyButton({ text }: { text: string }) {
+function CopyButton({ text, label = "Copy" }: { text: string; label?: string }) {
   const [done, setDone] = useState(false);
   return (
     <button
@@ -270,9 +326,9 @@ function CopyButton({ text }: { text: string }) {
           setTimeout(() => setDone(false), 1500);
         } catch {}
       }}
-      className="-mt-3 shrink-0 rounded-lg bg-canvas px-2.5 py-1 text-xs font-medium hover:bg-line"
+      className="shrink-0 rounded-lg bg-canvas px-2.5 py-1 text-xs font-medium hover:bg-line"
     >
-      {done ? "✓ Copied" : "Copy"}
+      {done ? "✓ Copied" : label}
     </button>
   );
 }
