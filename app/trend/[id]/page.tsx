@@ -145,8 +145,8 @@ export default function TrendDetail() {
 
       {trend && (
         <section className="mt-6 space-y-6">
-          <ViralScorePanel trend={trend} />
           <PublishPanel trendId={trend.id} />
+          <ViralScorePanel trend={trend} />
         </section>
       )}
     </main>

@@ -149,6 +149,7 @@ export const viralScoreSchema = {
 export const publishPlanSchema = {
   type: "object",
   properties: {
+    contentSummary: str,
     hashtagSet: {
       type: "array",
       items: {
