@@ -1,4 +1,4 @@
-import type { Platform } from "@/lib/types";
+import type { Platform, Trend, TrendStage } from "@/lib/types";
 
 export const compact = (n: number) =>
   Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 1 }).format(n);
@@ -20,4 +20,29 @@ export const platformLabel: Record<Platform, string> = {
 
 export function tiktokVideoId(url: string) {
   return url.match(/tiktok\.com\/.*\/video\/(\d+)/)?.[1] ?? null;
+}
+
+const DAY = 86_400_000;
+const weekday = (d: Date) => d.toLocaleDateString("en", { weekday: "short" });
+
+export interface PostingWindow {
+  open: boolean;
+  urgent: boolean;
+  label: string; // "Post by Thu", "Post within 48 h", "Window closed"
+  detail: string;
+  startDay: number; // offset from today, 0–6
+  endDay: number;
+}
+
+/** When to post, from the trend's lifecycle stage (the analysis' prediction wins when available). */
+export function postingWindow(trend: Trend, stage: TrendStage = trend.stage): PostingWindow {
+  const today = new Date();
+  if (stage === "rising") {
+    const by = new Date(today.getTime() + 4 * DAY);
+    return { open: true, urgent: false, label: `Post by ${weekday(by)}`, detail: "Still early. Best results in the next 4 days.", startDay: 0, endDay: 4 };
+  }
+  if (stage === "peaking") {
+    return { open: true, urgent: true, label: "Post within 48 h", detail: "At its peak now. Late posts get less reach.", startDay: 0, endDay: 1 };
+  }
+  return { open: false, urgent: false, label: "Window closed", detail: "Past its peak. Only worth it with a strong twist.", startDay: 0, endDay: -1 };
 }

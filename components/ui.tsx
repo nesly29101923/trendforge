@@ -1,89 +1,36 @@
-import type { Platform, TrendStage } from "@/lib/types";
-import { platformLabel } from "./format";
+"use client";
+
+import Link from "next/link";
+import { useState } from "react";
+import type { PostingWindow } from "./format";
 
 export function cx(...classes: (string | false | null | undefined)[]) {
   return classes.filter(Boolean).join(" ");
 }
 
-const stageStyle: Record<TrendStage, { label: string; className: string; icon: string }> = {
-  rising: { label: "Rising", className: "bg-cyan/15 text-cyan ring-cyan/30", icon: "↗" },
-  peaking: { label: "Peaking", className: "bg-pink/15 text-pink ring-pink/30", icon: "▲" },
-  fading: { label: "Fading", className: "bg-white/5 text-muted ring-white/10", icon: "↘" },
+type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
+  variant?: "primary" | "secondary" | "ghost";
+  size?: "md" | "lg";
+  loading?: boolean;
 };
 
-export function StageBadge({ stage }: { stage: TrendStage }) {
-  const s = stageStyle[stage];
+export function Button({ variant = "primary", size = "md", loading, className, children, disabled, ...rest }: ButtonProps) {
   return (
-    <span className={cx("inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold ring-1", s.className)}>
-      <span aria-hidden>{s.icon}</span>
-      {s.label}
-    </span>
-  );
-}
-
-export function EarlySignalBadge() {
-  return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-amber/15 px-2 py-0.5 text-xs font-semibold text-amber ring-1 ring-amber/40">
-      <span className="relative flex h-1.5 w-1.5">
-        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber opacity-75" />
-        <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-amber" />
-      </span>
-      Early Signal
-    </span>
-  );
-}
-
-export function MomentumBar({ score, large = false }: { score: number; large?: boolean }) {
-  const value = Math.max(0, Math.min(100, Math.round(score)));
-  return (
-    <div className="flex items-center gap-2">
-      <div className={cx("flex-1 overflow-hidden rounded-full bg-white/5", large ? "h-2.5" : "h-1.5")}>
-        <div className="brand-gradient h-full rounded-full" style={{ width: `${value}%` }} />
-      </div>
-      <span className={cx("tabular-nums font-semibold", large ? "text-base" : "text-xs")}>{value}</span>
-    </div>
-  );
-}
-
-export function PlatformTags({ platforms }: { platforms: Platform[] }) {
-  return (
-    <div className="flex gap-1">
-      {platforms.map((p) => (
-        <span key={p} className="rounded bg-white/5 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted">
-          {platformLabel[p]}
-        </span>
-      ))}
-    </div>
-  );
-}
-
-export function Skeleton({ className }: { className?: string }) {
-  return <div className={cx("skeleton rounded-lg", className)} />;
-}
-
-export function Card({ children, className }: { children: React.ReactNode; className?: string }) {
-  return <div className={cx("rounded-2xl border border-line bg-surface p-4 sm:p-5", className)}>{children}</div>;
-}
-
-export function SectionTitle({ icon, children }: { icon?: string; children: React.ReactNode }) {
-  return (
-    <h3 className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-muted">
-      {icon && <span aria-hidden className="text-sm">{icon}</span>}
-      {children}
-    </h3>
-  );
-}
-
-export function ErrorBox({ message, onRetry }: { message: string; onRetry?: () => void }) {
-  return (
-    <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-pink/30 bg-pink/10 px-4 py-3 text-sm">
-      <span className="text-pink">{message}</span>
-      {onRetry && (
-        <button onClick={onRetry} className="rounded-lg bg-white/10 px-3 py-1.5 font-medium hover:bg-white/15">
-          Retry
-        </button>
+    <button
+      {...rest}
+      disabled={disabled || loading}
+      className={cx(
+        "inline-flex items-center justify-center gap-2 rounded-[10px] font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50",
+        size === "lg" ? "h-12 px-5 text-[15px]" : "h-10 px-4 text-sm",
+        variant === "primary" && "bg-ink text-white hover:bg-black",
+        variant === "secondary" && "border border-line-strong bg-surface text-ink hover:border-ink/40",
+        variant === "ghost" && "text-ink-2 hover:bg-black/5 hover:text-ink",
+        className,
       )}
-    </div>
+    >
+      {loading && <Spinner />}
+      {children}
+    </button>
   );
 }
 
@@ -96,25 +43,105 @@ export function Spinner({ className }: { className?: string }) {
   );
 }
 
-export function Chip({
-  active,
-  onClick,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
+export function Skeleton({ className }: { className?: string }) {
+  return <div className={cx("skeleton rounded-md", className)} />;
+}
+
+export function Panel({ children, className }: { children: React.ReactNode; className?: string }) {
+  return <section className={cx("rounded-2xl border border-line bg-surface", className)}>{children}</section>;
+}
+
+export function ErrorNote({ message, onRetry }: { message: string; onRetry?: () => void }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cx(
-        "shrink-0 rounded-full px-3.5 py-1.5 text-sm font-medium transition",
-        active ? "bg-fg text-bg" : "bg-surface-2 text-muted ring-1 ring-line hover:text-fg",
+    <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-urgent/25 bg-urgent-soft px-4 py-3 text-sm text-ink">
+      <span>{message}</span>
+      {onRetry && (
+        <button onClick={onRetry} className="font-semibold text-urgent hover:underline">
+          Try again
+        </button>
       )}
-    >
+    </div>
+  );
+}
+
+/** Seven-day strip with the posting window highlighted: the core "when to post" signal. */
+export function WindowStrip({ window: w, compact = false }: { window: PostingWindow; compact?: boolean }) {
+  const days = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(Date.now() + i * 86_400_000);
+    return { i, label: i === 0 ? "Today" : d.toLocaleDateString("en", { weekday: "narrow" }) };
+  });
+  const tone = !w.open ? "text-muted" : w.urgent ? "text-urgent" : "text-good";
+  const fill = w.urgent ? "bg-urgent" : "bg-good";
+
+  return (
+    <div>
+      <div className={cx("font-semibold", compact ? "text-sm" : "text-base", tone)}>{w.label}</div>
+      <div className={cx("mt-1.5 flex gap-1", compact ? "w-36" : "w-full max-w-xs")} aria-hidden>
+        {days.map((d) => (
+          <div key={d.i} className="flex-1">
+            <div
+              className={cx(
+                "h-1.5 rounded-full",
+                w.open && d.i >= w.startDay && d.i <= w.endDay ? fill : "bg-line",
+              )}
+            />
+            {!compact && <div className="mt-1 text-center text-[11px] text-muted">{d.label}</div>}
+          </div>
+        ))}
+      </div>
+      {!compact && <p className="mt-2 text-sm text-ink-2">{w.detail}</p>}
+    </div>
+  );
+}
+
+/** Cover image that degrades to a neutral tile when the CDN link has expired. */
+export function Cover({ src, className, children }: { src?: string; className?: string; children?: React.ReactNode }) {
+  const [failed, setFailed] = useState(false);
+  return (
+    <div className={cx(className?.includes("absolute") ? "" : "relative", "overflow-hidden bg-[#e7e9ee]", className)}>
+      {src && !failed && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={src}
+          alt=""
+          loading="lazy"
+          referrerPolicy="no-referrer"
+          onError={() => setFailed(true)}
+          className="absolute inset-0 h-full w-full object-cover"
+        />
+      )}
       {children}
-    </button>
+    </div>
+  );
+}
+
+export function TopBar({ brandName, onEditBrand, right }: { brandName?: string; onEditBrand?: () => void; right?: React.ReactNode }) {
+  return (
+    <header className="no-print sticky top-0 z-30 border-b border-line bg-canvas/85 backdrop-blur-md">
+      <div className="mx-auto flex h-14 max-w-6xl items-center gap-3 px-4">
+        <Link href="/" className="flex items-center gap-2 text-[15px] font-semibold tracking-tight">
+          <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden>
+            <rect width="22" height="22" rx="6" fill="var(--color-ink)" />
+            <path d="M5 15.5 9.5 10l3 3L17 6.5" stroke="#fff" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          TrendForge
+        </Link>
+        <div className="ml-auto flex items-center gap-2">
+          {right}
+          {brandName && (
+            <button
+              onClick={onEditBrand}
+              className="flex h-9 items-center gap-2 rounded-full border border-line bg-surface pl-1.5 pr-3 text-sm font-medium hover:border-line-strong"
+              title="Edit your brand"
+            >
+              <span className="grid h-6 w-6 place-items-center rounded-full bg-accent text-xs font-semibold text-white">
+                {brandName.slice(0, 1).toUpperCase()}
+              </span>
+              <span className="max-w-32 truncate">{brandName}</span>
+            </button>
+          )}
+        </div>
+      </div>
+    </header>
   );
 }

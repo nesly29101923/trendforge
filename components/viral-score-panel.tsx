@@ -4,26 +4,21 @@ import { useEffect, useRef, useState } from "react";
 import type { Trend, ViralScore } from "@/lib/types";
 import { postForm } from "./api";
 import { compact } from "./format";
-import { Card, cx, ErrorBox, SectionTitle, Spinner } from "./ui";
+import { Button, ErrorNote, Panel, Spinner, cx } from "./ui";
 
 const BRIEF_KEY = "trendforge:brief";
 
-const STEPS = [
-  "Uploading your draft…",
-  "AI is watching it frame by frame…",
-  "Comparing it with the trend…",
-  "Calculating your view potential…",
-];
+const STEPS = ["Uploading your draft", "Watching it frame by frame", "Comparing it with the trend", "Estimating your views"];
 
 const CRITERIA = ["Hook in the first 1.5 s", "Trend fidelity", "Beat sync & pacing", "Retention / loop", "Visual quality", "Brand integration", "Call to action"];
 
 const PRIORITY = {
-  high: "bg-pink/15 text-pink ring-pink/30",
-  medium: "bg-amber/15 text-amber ring-amber/30",
-  low: "bg-white/5 text-muted ring-white/10",
+  high: "text-urgent",
+  medium: "text-accent",
+  low: "text-muted",
 };
 
-const scoreColor = (s: number) => (s >= 75 ? "var(--color-cyan)" : s >= 50 ? "var(--color-amber)" : "var(--color-pink)");
+const scoreColor = (s: number) => (s >= 75 ? "var(--color-good)" : s >= 50 ? "var(--color-accent)" : "var(--color-urgent)");
 
 function savedBrief(): { brandName?: string; product?: string } {
   try {
@@ -77,15 +72,14 @@ export function ViralScorePanel({ trend }: { trend: Trend }) {
   }
 
   return (
-    <Card className="relative overflow-hidden">
-      <div className="brand-gradient absolute inset-x-0 top-0 h-0.5" />
-      <SectionTitle icon="📈">Viral Score</SectionTitle>
-      <h2 className="text-2xl font-bold tracking-tight">Will your draft get views?</h2>
-      <p className="mt-1 text-sm text-muted">
-        Upload your draft. AI scores it against what makes this trend work, lists the exact fixes and shows the views you unlock.
+    <Panel className="p-5 sm:p-6">
+      <h2 className="text-xl font-semibold">Check your draft before posting</h2>
+      <p className="mt-1 max-w-[60ch] text-ink-2">
+        Shot it already? Upload the draft. We score it against what makes this trend work, list the exact fixes, and estimate the views
+        you&apos;d get before and after.
       </p>
 
-      <div className="mt-5 grid gap-5 md:grid-cols-[220px_1fr]">
+      <div className="mt-6 grid gap-6 md:grid-cols-[180px_1fr]">
         <div className="space-y-3">
           <input
             ref={fileRef}
@@ -101,117 +95,104 @@ export function ViralScorePanel({ trend }: { trend: Trend }) {
           <button
             type="button"
             onClick={() => fileRef.current?.click()}
-            className="relative grid aspect-[9/16] w-full place-items-center overflow-hidden rounded-2xl border border-dashed border-line bg-surface-2 text-center transition hover:border-white/25"
+            className="relative grid aspect-[9/16] w-full max-w-[180px] place-items-center overflow-hidden rounded-xl border border-dashed border-line-strong bg-canvas text-center hover:border-ink/40"
           >
             {preview ? (
               <video src={preview} muted loop autoPlay playsInline className="absolute inset-0 h-full w-full object-cover" />
             ) : (
-              <span className="px-4 text-sm text-muted">
-                <span className="mb-2 block text-3xl">⬆</span>
-                Upload draft video
-                <span className="mt-1 block text-xs">MP4 / MOV, vertical</span>
+              <span className="px-4 text-sm text-ink-2">
+                <span className="block font-medium text-ink">Upload draft</span>
+                <span className="mt-1 block text-xs text-muted">Vertical MP4 or MOV</span>
               </span>
             )}
           </button>
-          <button
-            type="button"
-            onClick={run}
-            disabled={!file || busy}
-            className="brand-gradient flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 font-bold text-black transition disabled:opacity-50"
-          >
-            {busy && <Spinner />}
-            {busy ? "Scoring…" : result ? "↻ Score again" : "Get Viral Score"}
-          </button>
+          <Button className="w-full max-w-[180px]" onClick={run} disabled={!file} loading={busy}>
+            {busy ? "Scoring" : result ? "Score again" : "Score my draft"}
+          </Button>
         </div>
 
         <div className="min-w-0">
-          {error && <ErrorBox message={error} onRetry={file ? run : undefined} />}
+          {error && <ErrorNote message={error} onRetry={file ? run : undefined} />}
           {busy && (
-            <div className="flex h-full min-h-48 flex-col items-center justify-center gap-3 rounded-2xl bg-surface-2 p-6 text-center">
-              <Spinner className="h-6 w-6 text-cyan" />
-              <p className="text-sm text-muted">{STEPS[step]}</p>
+            <div className="flex min-h-48 items-center gap-3 rounded-xl bg-canvas p-6 text-sm text-ink-2">
+              <Spinner className="text-accent" />
+              {STEPS[step]}
             </div>
           )}
           {!busy && !error && !result && (
-            <ul className="grid gap-2 text-sm text-muted sm:grid-cols-2">
-              {CRITERIA.map((c) => (
-                <li key={c} className="rounded-xl bg-surface-2 px-3 py-2.5 ring-1 ring-line">
-                  {c}
-                </li>
-              ))}
-            </ul>
+            <div className="text-sm text-ink-2">
+              <div className="mb-2 font-medium text-ink">What we check</div>
+              <ul className="grid gap-x-6 gap-y-1.5 sm:grid-cols-2">
+                {CRITERIA.map((c) => (
+                  <li key={c} className="flex items-center gap-2">
+                    <span className="h-1 w-1 rounded-full bg-ink-2" />
+                    {c}
+                  </li>
+                ))}
+              </ul>
+            </div>
           )}
           {result && <ScoreResult r={result} />}
         </div>
       </div>
-    </Card>
+    </Panel>
   );
 }
 
 function ScoreResult({ r }: { r: ViralScore }) {
-  const lift =
-    r.expectedViews.before.high > 0 ? Math.round((r.expectedViews.after.high / r.expectedViews.before.high - 1) * 100) : 0;
   return (
-    <div className="space-y-4">
-      <div className="rounded-2xl bg-gradient-to-br from-pink/10 via-surface-2 to-cyan/10 p-4 ring-1 ring-white/10">
-        <div className="flex flex-wrap items-center justify-around gap-4">
-          <Gauge value={r.score} label="Your draft" />
-          <div className="text-center">
-            <div className="text-3xl font-black text-cyan">→</div>
-            <div className="text-sm font-bold text-cyan">+{r.scoreAfterFixes - r.score} pts</div>
+    <div className="space-y-6">
+      <div className="grid gap-4 rounded-xl bg-canvas p-4 sm:grid-cols-[auto_auto_1fr] sm:items-center">
+        <Gauge value={r.score} label="Your draft" />
+        <Gauge value={r.scoreAfterFixes} label="After fixes" />
+        <div className="sm:pl-4">
+          <div className="text-sm text-ink-2">Expected views</div>
+          <div className="text-sm text-muted line-through">
+            {compact(r.expectedViews.before.low)}–{compact(r.expectedViews.before.high)} as is
           </div>
-          <Gauge value={r.scoreAfterFixes} label="After fixes" />
-          <div className="rounded-xl bg-black/30 px-4 py-3">
-            <div className="text-[10px] font-semibold uppercase tracking-wider text-muted">Expected views</div>
-            <div className="text-sm text-muted line-through decoration-pink/70">
-              {compact(r.expectedViews.before.low)}–{compact(r.expectedViews.before.high)}
-            </div>
-            <div className="text-2xl font-black tabular-nums text-cyan">
-              {compact(r.expectedViews.after.low)}–{compact(r.expectedViews.after.high)}
-            </div>
-            {lift > 0 && <div className="text-xs font-bold text-cyan">+{lift}% views</div>}
+          <div className="text-2xl font-semibold tabular-nums text-good">
+            {compact(r.expectedViews.after.low)}–{compact(r.expectedViews.after.high)}
           </div>
+          <div className="text-sm text-ink-2">with the fixes below</div>
         </div>
-        <p className="mt-4 text-center text-lg font-semibold">“{r.verdict}”</p>
+      </div>
+      <p className="text-[17px] font-medium">{r.verdict}</p>
+
+      <div>
+        <h3 className="mb-3 font-semibold">Fixes, most important first</h3>
+        <ol className="divide-y divide-line rounded-xl border border-line">
+          {r.fixes.map((f, i) => (
+            <li key={i} className="grid gap-1 p-3 sm:grid-cols-[90px_1fr]">
+              <div className="text-sm">
+                <span className={cx("font-semibold capitalize", PRIORITY[f.priority])}>{f.priority}</span>
+                {f.timecode && <span className="block tabular-nums text-muted">{f.timecode}</span>}
+              </div>
+              <div>
+                <p className="font-medium">{f.fix}</p>
+                <p className="text-sm text-ink-2">{f.impact}</p>
+              </div>
+            </li>
+          ))}
+        </ol>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <div className="rounded-2xl bg-surface-2 p-4 ring-1 ring-line">
-          <SectionTitle icon="🧪">Breakdown</SectionTitle>
-          <div className="space-y-3">
-            {r.breakdown.map((b) => (
-              <div key={b.criterion}>
-                <div className="flex justify-between text-sm">
-                  <span>{b.criterion}</span>
-                  <span className="font-mono font-semibold" style={{ color: scoreColor(b.score * 10) }}>
-                    {b.score}/10
-                  </span>
-                </div>
-                <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-white/5">
-                  <div className="h-full rounded-full" style={{ width: `${b.score * 10}%`, background: scoreColor(b.score * 10) }} />
-                </div>
-                {b.note && <p className="mt-1 text-xs text-muted">{b.note}</p>}
+      <div>
+        <h3 className="mb-3 font-semibold">Score breakdown</h3>
+        <div className="grid gap-x-8 gap-y-3 sm:grid-cols-2">
+          {r.breakdown.map((b) => (
+            <div key={b.criterion}>
+              <div className="flex justify-between text-sm">
+                <span>{b.criterion}</span>
+                <span className="font-semibold tabular-nums" style={{ color: scoreColor(b.score * 10) }}>
+                  {b.score}/10
+                </span>
               </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="rounded-2xl bg-surface-2 p-4 ring-1 ring-line">
-          <SectionTitle icon="🛠">Fixes to unlock more views</SectionTitle>
-          <ol className="space-y-2.5">
-            {r.fixes.map((f, i) => (
-              <li key={i} className="rounded-xl bg-black/20 p-3 text-sm">
-                <div className="mb-1 flex flex-wrap items-center gap-2">
-                  <span className={cx("rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ring-1", PRIORITY[f.priority])}>
-                    {f.priority}
-                  </span>
-                  {f.timecode && <span className="font-mono text-xs text-cyan">{f.timecode}</span>}
-                </div>
-                <p className="font-semibold">{f.fix}</p>
-                <p className="mt-0.5 text-muted">{f.impact}</p>
-              </li>
-            ))}
-          </ol>
+              <div className="mt-1 h-1 overflow-hidden rounded-full bg-line">
+                <div className="h-full rounded-full" style={{ width: `${b.score * 10}%`, background: scoreColor(b.score * 10) }} />
+              </div>
+              {b.note && <p className="mt-1 text-xs text-muted">{b.note}</p>}
+            </div>
+          ))}
         </div>
       </div>
     </div>
@@ -219,28 +200,28 @@ function ScoreResult({ r }: { r: ViralScore }) {
 }
 
 function Gauge({ value, label }: { value: number; label: string }) {
-  const r = 42;
+  const r = 30;
   const c = 2 * Math.PI * r;
   return (
-    <div className="flex flex-col items-center">
-      <svg width="108" height="108" viewBox="0 0 108 108" role="img" aria-label={`${label}: ${value} out of 100`}>
-        <circle cx="54" cy="54" r={r} fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth="9" />
+    <div className="flex items-center gap-3">
+      <svg width="72" height="72" viewBox="0 0 72 72" role="img" aria-label={`${label}: ${value} out of 100`}>
+        <circle cx="36" cy="36" r={r} fill="none" stroke="var(--color-line)" strokeWidth="6" />
         <circle
-          cx="54"
-          cy="54"
+          cx="36"
+          cy="36"
           r={r}
           fill="none"
           stroke={scoreColor(value)}
-          strokeWidth="9"
+          strokeWidth="6"
           strokeLinecap="round"
           strokeDasharray={`${(value / 100) * c} ${c}`}
-          transform="rotate(-90 54 54)"
+          transform="rotate(-90 36 36)"
         />
-        <text x="54" y="63" textAnchor="middle" fontSize="28" fontWeight="900" fill="var(--color-fg)">
+        <text x="36" y="42" textAnchor="middle" fontSize="18" fontWeight="600" fill="var(--color-ink)">
           {value}
         </text>
       </svg>
-      <span className="text-xs text-muted">{label}</span>
+      <span className="text-sm text-ink-2">{label}</span>
     </div>
   );
 }

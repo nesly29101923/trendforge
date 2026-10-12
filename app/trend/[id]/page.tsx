@@ -2,44 +2,38 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
+import type { Trend, TrendAnalysis } from "@/lib/types";
 import { AnalysisSkeleton, AnalysisView } from "@/components/analysis-view";
 import { getJSON, postJSON } from "@/components/api";
-import { BriefForm } from "@/components/brief-form";
-import { compact } from "@/components/format";
-import { isEarlySignal } from "@/lib/trends";
+import { useBrand } from "@/components/brand";
+import { BrandSheet } from "@/components/brand-sheet";
+import { compact, postingWindow } from "@/components/format";
+import { displayName, useTrendNames } from "@/components/names";
 import { SampleVideos } from "@/components/sample-videos";
+import { Button, ErrorNote, Skeleton, TopBar, WindowStrip } from "@/components/ui";
 import { ViralScorePanel } from "@/components/viral-score-panel";
-import { EarlySignalBadge, ErrorBox, MomentumBar, PlatformTags, Skeleton, StageBadge } from "@/components/ui";
-import type { Trend, TrendAnalysis } from "@/lib/types";
 
 async function fetchTrend(id: string): Promise<Trend> {
   try {
     return await getJSON<Trend>(`/api/trends/${encodeURIComponent(id)}`);
   } catch {
-    const all = await getJSON<Trend[]>("/api/trends");
-    const found = all.find((t) => t.id === id);
-    if (!found) throw new Error("Trend not found");
+    const found = (await getJSON<Trend[]>("/api/trends")).find((t) => t.id === id);
+    if (!found) throw new Error("This trend is no longer in today's scan.");
     return found;
   }
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-xl bg-surface-2 px-3 py-2.5 ring-1 ring-line">
-      <div className="text-[10px] font-semibold uppercase tracking-wider text-muted">{label}</div>
-      <div className="mt-0.5 text-lg font-bold tabular-nums">{value}</div>
-    </div>
-  );
-}
-
-export default function TrendDetail() {
-  const params = useParams<{ id: string }>();
-  const id = decodeURIComponent(params.id);
+export default function TrendPage() {
+  const router = useRouter();
+  const id = decodeURIComponent(useParams<{ id: string }>().id);
+  const { brand, setBrand } = useBrand();
   const [trend, setTrend] = useState<Trend | null>(null);
   const [analysis, setAnalysis] = useState<TrendAnalysis | null>(null);
   const [trendError, setTrendError] = useState<string | null>(null);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
+  const [sheet, setSheet] = useState<"make" | "edit" | null>(null);
+  const names = useTrendNames(trend);
 
   const analyze = useCallback(async (t: Trend) => {
     setAnalysisError(null);
@@ -60,93 +54,110 @@ export default function TrendDetail() {
       .catch((err) => setTrendError(err.message));
   }, [id, analyze]);
 
+  const make = () => router.push(`/make/${encodeURIComponent(id)}`);
+
   if (trendError) {
     return (
-      <main className="mx-auto max-w-6xl px-4 py-10">
-        <ErrorBox message={trendError} />
-        <Link href="/" className="mt-4 inline-block text-sm text-muted hover:text-fg">
-          ← Back to Trend Radar
-        </Link>
-      </main>
+      <>
+        <TopBar brandName={brand?.brandName} onEditBrand={() => setSheet("edit")} />
+        <main className="mx-auto max-w-5xl px-4 py-10">
+          <ErrorNote message={trendError} />
+          <Link href="/" className="mt-4 inline-block text-sm font-medium text-accent">
+            Back to trends
+          </Link>
+        </main>
+      </>
     );
   }
 
+  const name = trend ? displayName(trend, names) : "";
+  const w = trend ? postingWindow(trend, analysis?.prediction.stage) : null;
+
   return (
-    <main className="mx-auto max-w-6xl px-4 pb-20 pt-5 sm:pt-8">
-      <Link href="/" className="mb-4 inline-block text-sm text-muted hover:text-fg">
-        ← Trend Radar
-      </Link>
+    <>
+      <TopBar brandName={brand?.brandName} onEditBrand={() => setSheet("edit")} />
+      <main className="mx-auto max-w-5xl px-4 pb-24 pt-6">
+        <Link href="/" className="text-sm font-medium text-ink-2 hover:text-ink">
+          All trends
+        </Link>
 
-      {trend ? (
-        <section className="mb-6 grid gap-6 lg:grid-cols-[1fr_1.1fr] lg:items-start">
-          <div>
-            <div className="mb-3 flex flex-wrap items-center gap-2">
-              <StageBadge stage={trend.stage} />
-              {isEarlySignal(trend) && <EarlySignalBadge />}
-              <PlatformTags platforms={trend.platforms} />
-            </div>
-            <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">{trend.title}</h1>
-            {trend.soundTitle && (
-              <p className="mt-2 text-muted">
-                ♫ {trend.soundTitle}
-                {trend.soundAuthor && ` · ${trend.soundAuthor}`}
-              </p>
+        <div className="mt-4 grid gap-8 lg:grid-cols-[320px_1fr] lg:gap-x-12">
+          <div className="lg:col-start-1 lg:row-span-2 lg:row-start-1 lg:sticky lg:top-20 lg:self-start max-lg:order-2">
+            {trend ? <SampleVideos videos={trend.sampleVideos} /> : <Skeleton className="mx-auto aspect-[9/16] w-full max-w-[320px] rounded-2xl" />}
+          </div>
+
+          <div className="min-w-0 lg:col-start-2 lg:row-start-1 max-lg:order-1">
+            {trend && w ? (
+              <>
+                <h1 className="text-[32px] font-semibold leading-tight sm:text-[40px]">{name}</h1>
+                {names[trend.id]?.oneLiner && <p className="mt-2 text-[17px] text-ink-2">{names[trend.id].oneLiner}</p>}
+                <p className="mt-2 text-sm text-muted">
+                  {compact(trend.totalPlays)} plays across {trend.videoCount} videos
+                  {trend.soundTitle && <>. Sound: {trend.soundTitle}</>}
+                </p>
+
+                <div className="mt-6">
+                  <WindowStrip window={w} />
+                </div>
+
+                <div className="mt-8 rounded-2xl border border-line bg-surface p-5">
+                  <Button size="lg" className="w-full sm:w-auto" onClick={() => (brand ? make() : setSheet("make"))}>
+                    {brand ? `Make this for ${brand.brandName}` : "Make this for my brand"}
+                  </Button>
+                  <p className="mt-3 text-sm text-ink-2">
+                    You get a ready-to-post AI video and a simple guide to film it yourself, side by side. Takes about 2 minutes.
+                  </p>
+                  {brand && (
+                    <button onClick={() => setSheet("edit")} className="mt-2 text-sm font-medium text-accent hover:underline">
+                      Not {brand.brandName}? Change brand
+                    </button>
+                  )}
+                </div>
+              </>
+            ) : (
+              <div className="space-y-3">
+                <Skeleton className="h-11 w-3/4" />
+                <Skeleton className="h-5 w-1/2" />
+                <Skeleton className="mt-8 h-28 w-full rounded-2xl" />
+              </div>
             )}
-            {trend.hashtags.length > 0 && (
-              <p className="mt-3 flex flex-wrap gap-x-2 gap-y-1 text-sm text-cyan">
-                {trend.hashtags.slice(0, 8).map((h) => (
-                  <span key={h}>#{h}</span>
-                ))}
-              </p>
+          </div>
+
+          <div className="min-w-0 lg:col-start-2 lg:row-start-2 max-lg:order-3">
+            <section className="mt-6 lg:mt-6">
+              <h2 className="mb-4 text-xl font-semibold">Why it&apos;s trending</h2>
+              {analysisError ? (
+                <ErrorNote message={`Couldn't break this trend down: ${analysisError}`} onRetry={trend ? () => analyze(trend) : undefined} />
+              ) : analysis ? (
+                <AnalysisView analysis={analysis} />
+              ) : (
+                <AnalysisSkeleton />
+              )}
+            </section>
+
+            {trend && (
+              <section id="draft" className="mt-14 scroll-mt-20">
+                <ViralScorePanel trend={trend} />
+              </section>
             )}
-            <div className="mt-5">
-              <div className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-muted">Momentum score</div>
-              <MomentumBar score={trend.momentumScore} large />
-            </div>
-            <div className="mt-4 grid grid-cols-3 gap-2">
-              <Stat label="Plays" value={compact(trend.totalPlays)} />
-              <Stat label="Videos" value={String(trend.videoCount)} />
-              <Stat label="Engagement" value={`${(trend.avgEngagementRate * 100).toFixed(1)}%`} />
-            </div>
           </div>
-          <SampleVideos videos={trend.sampleVideos} />
-        </section>
-      ) : (
-        <section className="mb-6 grid gap-6 lg:grid-cols-[1fr_1.1fr]">
-          <div className="space-y-3">
-            <Skeleton className="h-6 w-28" />
-            <Skeleton className="h-10 w-4/5" />
-            <Skeleton className="h-5 w-1/2" />
-            <Skeleton className="mt-6 h-16 w-full" />
-          </div>
-          <div className="grid grid-cols-3 gap-3">
-            {[0, 1, 2].map((i) => (
-              <Skeleton key={i} className="aspect-[9/16]" />
-            ))}
-          </div>
-        </section>
+        </div>
+      </main>
+
+      {sheet && (
+        <BrandSheet
+          initial={brand ?? null}
+          title={sheet === "make" ? "Who is this for?" : "Your brand"}
+          submitLabel={sheet === "make" ? "Make it" : "Save"}
+          onClose={() => setSheet(null)}
+          onSave={(b) => {
+            setBrand(b);
+            const wasMake = sheet === "make";
+            setSheet(null);
+            if (wasMake) make();
+          }}
+        />
       )}
-
-      <section className="mb-8">
-        <h2 className="mb-4 text-xl font-bold tracking-tight">
-          Why it works <span className="text-sm font-medium text-muted">· AI breakdown</span>
-        </h2>
-        {analysisError ? (
-          <ErrorBox message={`Analysis failed: ${analysisError}`} onRetry={trend ? () => analyze(trend) : undefined} />
-        ) : analysis ? (
-          <AnalysisView analysis={analysis} />
-        ) : (
-          <AnalysisSkeleton />
-        )}
-      </section>
-
-      {trend && <BriefForm trend={trend} analysis={analysis} />}
-
-      {trend && (
-        <section className="mt-6">
-          <ViralScorePanel trend={trend} />
-        </section>
-      )}
-    </main>
+    </>
   );
 }

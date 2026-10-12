@@ -1,41 +1,63 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { getJSON, postJSON } from "@/components/api";
-import { compact, timeAgo } from "@/components/format";
-import { isEarlySignal } from "@/lib/trends";
-import { TrendCard, TrendCardSkeleton } from "@/components/trend-card";
-import { Chip, ErrorBox, Spinner } from "@/components/ui";
+import Link from "next/link";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import type { Trend } from "@/lib/types";
+import { getJSON, postJSON } from "@/components/api";
+import { useBrand } from "@/components/brand";
+import { BrandSheet } from "@/components/brand-sheet";
+import { compact, postingWindow, timeAgo } from "@/components/format";
+import { displayName, useTrendNames } from "@/components/names";
+import { Button, Cover, ErrorNote, Skeleton, TopBar, cx } from "@/components/ui";
 
-const FILTERS = [
-  { id: "all", label: "All" },
-  { id: "rising", label: "↗ Rising only" },
-  { id: "sound", label: "Sound" },
-  { id: "music", label: "Music" },
-  { id: "format", label: "Format" },
-] as const;
+function TrendTile({ trend, name, oneLiner, onMake }: { trend: Trend; name: string; oneLiner?: string; onMake: () => void }) {
+  const w = postingWindow(trend);
+  return (
+    <div className="flex h-full flex-col">
+      <Link href={`/trend/${encodeURIComponent(trend.id)}`} className="group block flex-1">
+        <Cover src={trend.sampleVideos[0]?.coverUrl} className="aspect-[9/16] rounded-2xl">
+          <span
+            className={cx(
+              "absolute left-2 top-2 rounded-full px-2 py-0.5 text-xs font-semibold",
+              !w.open ? "bg-white/85 text-ink-2" : w.urgent ? "bg-urgent text-white" : "bg-good text-white",
+            )}
+          >
+            {w.label}
+          </span>
+          <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/55 to-transparent px-2.5 pb-2 pt-8 text-xs font-medium text-white">
+            {compact(trend.totalPlays)} plays
+          </span>
+        </Cover>
+        <h3 className="mt-2.5 font-semibold leading-snug group-hover:underline">{name}</h3>
+        {oneLiner && <p className="mt-0.5 line-clamp-2 text-sm text-ink-2">{oneLiner}</p>}
+      </Link>
+      <Button variant={w.open ? "primary" : "secondary"} className="mt-3 w-full" onClick={onMake}>
+        Make this
+      </Button>
+    </div>
+  );
+}
 
-type Filter = (typeof FILTERS)[number]["id"];
-
-export default function TrendRadar() {
+export default function Home() {
+  const { brand, setBrand } = useBrand();
   const [trends, setTrends] = useState<Trend[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [filter, setFilter] = useState<Filter>("all");
   const [refreshing, setRefreshing] = useState(false);
+  const [sheet, setSheet] = useState<{ mode: "start" | "edit" } | { mode: "make"; trendId: string } | null>(null);
+  const names = useTrendNames(trends);
+  const router = useRouter();
+  const gridRef = useRef<HTMLElement>(null);
 
-  const load = useCallback(async () => {
-    setError(null);
-    try {
-      setTrends(await getJSON<Trend[]>("/api/trends"));
-    } catch (err) {
-      setError((err as Error).message);
-    }
-  }, []);
+  const toGrid = () => gridRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  const make = (trendId: string) => router.push(`/make/${encodeURIComponent(trendId)}`);
+  const start = () => (brand ? toGrid() : setSheet({ mode: "start" }));
 
   useEffect(() => {
-    load();
-  }, [load]);
+    getJSON<Trend[]>("/api/trends")
+      .then(setTrends)
+      .catch((err) => setError(`Couldn't load trends: ${err.message}`));
+  }, []);
 
   async function refresh() {
     setRefreshing(true);
@@ -49,71 +71,102 @@ export default function TrendRadar() {
     }
   }
 
-  const visible = useMemo(() => {
-    if (!trends) return [];
-    if (filter === "all") return trends;
-    if (filter === "rising") return trends.filter((t) => t.stage === "rising");
-    return trends.filter((t) => t.type === filter);
-  }, [trends, filter]);
-
-  const updatedAt = trends?.reduce<string | null>((max, t) => (!max || t.updatedAt > max ? t.updatedAt : max), null);
-  const earlyCount = trends?.filter(isEarlySignal).length ?? 0;
-  const totalPlays = trends?.reduce((s, t) => s + t.totalPlays, 0) ?? 0;
+  // Trends you can still post first, closed windows last.
+  const sorted = useMemo(
+    () => (trends ? [...trends].sort((a, b) => Number(postingWindow(b).open) - Number(postingWindow(a).open) || b.momentumScore - a.momentumScore) : []),
+    [trends],
+  );
+  const updatedAt = trends?.reduce<string | null>((m, t) => (!m || t.updatedAt > m ? t.updatedAt : m), null);
 
   return (
-    <main className="mx-auto max-w-6xl px-4 pb-16 pt-6 sm:pt-10">
-      <section className="mb-6 flex flex-col gap-4 sm:mb-8 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-cyan">Trend Radar</p>
-          <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
-            Catch the trend <span className="text-gradient">before it peaks.</span>
-          </h1>
-          <p className="mt-2 text-sm text-muted">
-            {updatedAt ? `Updated ${timeAgo(updatedAt)}` : "Scanning short-video platforms daily"}
-            {trends && trends.length > 0 && (
-              <>
-                {" "}
-                · {trends.length} trends · {compact(totalPlays)} plays tracked
-                {earlyCount > 0 && <span className="text-amber"> · {earlyCount} early signals</span>}
-              </>
-            )}
+    <>
+      <TopBar brandName={brand?.brandName} onEditBrand={() => setSheet({ mode: "edit" })} />
+      <main className="mx-auto max-w-6xl px-4 pb-20">
+        <section className="flex flex-col items-start py-12 sm:py-20">
+          <h1 className="max-w-3xl text-[36px] font-semibold leading-[1.1] sm:text-[56px]">Turn today&apos;s TikTok trends into your next ad.</h1>
+          <p className="mt-4 max-w-xl text-[17px] text-ink-2 sm:text-lg">
+            Pick a trend. Get a ready-to-post video and a simple guide to film it yourself, in about 2 minutes.
           </p>
-        </div>
-        <button
-          onClick={refresh}
-          disabled={refreshing}
-          className="inline-flex items-center justify-center gap-2 self-start rounded-xl border border-line bg-surface-2 px-4 py-2.5 text-sm font-semibold transition hover:border-white/20 disabled:opacity-60 sm:self-auto"
-        >
-          {refreshing ? <Spinner /> : <span aria-hidden>↻</span>}
-          {refreshing ? "Scanning TikTok… (1–4 min)" : "Refresh trends"}
-        </button>
-      </section>
+          <Button size="lg" className="mt-8 px-8" onClick={start}>
+            {brand ? `Let's start, ${brand.brandName}` : "Let's start"}
+          </Button>
+          <ol className="mt-10 grid w-full max-w-2xl gap-4 text-sm sm:grid-cols-3">
+            {["Pick a trend that's taking off", "Tell us your brand, once", "Get a video and a filming guide"].map((step, i) => (
+              <li key={step} className="flex items-center gap-3">
+                <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full border border-line-strong font-semibold tabular-nums">{i + 1}</span>
+                <span className="text-ink-2">{step}</span>
+              </li>
+            ))}
+          </ol>
+        </section>
 
-      <div className="no-scrollbar -mx-4 mb-5 flex gap-2 overflow-x-auto px-4">
-        {FILTERS.map((f) => (
-          <Chip key={f.id} active={filter === f.id} onClick={() => setFilter(f.id)}>
-            {f.label}
-          </Chip>
-        ))}
-      </div>
+        <section ref={gridRef} className="scroll-mt-20 border-t border-line pt-10">
+          <header className="mb-8 flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <h2 className="text-[26px] font-semibold leading-tight sm:text-[32px]">Trending today</h2>
+              <p className="mt-1 text-ink-2">
+                {brand ? `Pick one and we'll make it for ${brand.brandName}.` : "Pick one and we'll make it for your brand."}
+              </p>
+            </div>
+            <div className="flex items-center gap-3 text-sm text-muted">
+              {updatedAt && <span>Updated {timeAgo(updatedAt)}</span>}
+              <Button variant="secondary" onClick={refresh} loading={refreshing}>
+                {refreshing ? "Scanning TikTok" : "Refresh"}
+              </Button>
+            </div>
+          </header>
 
-      {error && (
-        <div className="mb-5">
-          <ErrorBox message={error} onRetry={load} />
-        </div>
+          {error && (
+            <div className="mb-6">
+              <ErrorNote message={error} onRetry={() => location.reload()} />
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-x-4 gap-y-10 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+            {trends === null && !error
+              ? Array.from({ length: 10 }, (_, i) => (
+                  <div key={i}>
+                    <Skeleton className="aspect-[9/16] rounded-2xl" />
+                    <Skeleton className="mt-3 h-4 w-3/4" />
+                    <Skeleton className="mt-2 h-3 w-full" />
+                  </div>
+                ))
+              : sorted.map((t) => (
+                  <TrendTile
+                    key={t.id}
+                    trend={t}
+                    name={displayName(t, names)}
+                    oneLiner={names[t.id]?.oneLiner}
+                    onMake={() => (brand ? make(t.id) : setSheet({ mode: "make", trendId: t.id }))}
+                  />
+                ))}
+          </div>
+
+          {trends?.length === 0 && (
+            <div className="py-16 text-center">
+              <p className="font-medium">No trends scanned yet.</p>
+              <Button className="mt-4" onClick={refresh} loading={refreshing}>
+                Scan TikTok now
+              </Button>
+            </div>
+          )}
+        </section>
+      </main>
+
+      {sheet && (
+        <BrandSheet
+          initial={brand ?? null}
+          title={sheet.mode === "edit" ? "Your brand" : "Who are you making ads for?"}
+          submitLabel={sheet.mode === "make" ? "Make it" : sheet.mode === "start" ? "Show me trends" : "Save"}
+          onClose={() => setSheet(null)}
+          onSave={(b) => {
+            setBrand(b);
+            setSheet(null);
+            if (sheet.mode === "make") make(sheet.trendId);
+            if (sheet.mode === "start") setTimeout(toGrid, 50);
+          }}
+        />
       )}
-
-      <div className="grid gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3 xl:grid-cols-4">
-        {trends === null && !error
-          ? Array.from({ length: 8 }, (_, i) => <TrendCardSkeleton key={i} />)
-          : visible.map((t) => <TrendCard key={t.id} trend={t} rank={trends!.indexOf(t) + 1} />)}
-      </div>
-
-      {trends && visible.length === 0 && (
-        <p className="py-16 text-center text-muted">
-          {trends.length === 0 ? "No trends yet. Hit “Refresh trends” to scan." : "No trends match this filter."}
-        </p>
-      )}
-    </main>
+    </>
   );
 }

@@ -145,3 +145,18 @@ export const viralScoreSchema = {
   },
   required: ["score", "scoreAfterFixes", "verdict", "breakdown", "fixes"],
 } as const;
+
+export const trendNamesSchema = {
+  type: "object",
+  properties: {
+    trends: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: { trendId: { type: "string" }, name: { type: "string" }, oneLiner: { type: "string" } },
+        required: ["trendId", "name", "oneLiner"],
+      },
+    },
+  },
+  required: ["trends"],
+};
