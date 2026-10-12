@@ -555,3 +555,26 @@ Branch: `ws6-dance-coach`. Files: `app/api/dance/**`, `components/dance-coach.ts
 - The 43 moves are our own; do not import AIST++/SMPL or other research datasets (non-commercial licences).
 - The engine's MediaPipe model loads from a CDN on first use (~6 MB) → needs internet on the demo device.
 - Known gotchas: the dance-ai Windows setup needs `npm.cmd`/`npx.cmd` (PowerShell blocks `npm.ps1`), and inbound port 8000 must be allowed in Windows Firewall if served from the PC.
+
+---
+
+## 13. API contract (implemented — frontend codes against this)
+
+All routes return JSON. Errors: `{ error: string }` with status 4xx/5xx.
+
+| Method | Route | Body / params | Returns | Status |
+|--------|-------|---------------|---------|--------|
+| GET | `/api/trends` | — | `Trend[]` sorted by momentum | ✅ WS1 |
+| GET | `/api/trends/[id]` | — | `Trend` | ✅ WS1 |
+| POST | `/api/trends/refresh` | `{ queries?: string[] }` | `Trend[]` (runs Apify, 1–4 min) | ✅ WS1 |
+| POST | `/api/trends/[id]/analyze` | — | `TrendAnalysis` | WS2 |
+| POST | `/api/create/guide` | `{ trendId, brief: BrandBrief }` | `FilmGuide` | WS3 |
+| POST | `/api/create/video/upload` | multipart `file` (image ≤10 MB) | `{ url }` → put in `brief.productImageUrl` | ✅ WS4 |
+| POST | `/api/create/video` | `{ trendId or trend, brief: BrandBrief, analysis?, quality?: "fast" \| "hero" }` | `VideoJob` (status `queued`) | ✅ WS4 |
+| GET | `/api/create/video/[jobId]` | — | `VideoJob` without `storyboard`; poll every 3 s until `done` / `error` | ✅ WS4 |
+
+Notes:
+- `isEarlySignal(trend)` is exported from `lib/trends.ts` for the "Early Signal" badge.
+- Video: one clip per job. `fast` = Kling 2.5 Turbo Pro, 10 s, ~$0.70. `hero` = Veo 3.1 Fast, 8 s 720p with native audio, ~$1.20. With a product image, Kling image-to-video is used (output follows the image's aspect ratio, so upload a 9:16 image). The jobId is self-contained (encodes the fal request), so polling works on any serverless instance.
+- Seed mode: if `seed/video-demo.json` (a `VideoJob` with `status: "done"`) exists, `POST /api/create/video` returns it.
+- Analysis cache: WS2 must store analyses as `Record<trendId, TrendAnalysis>` under the name `analyses` via `lib/store.ts` (`writeData("analyses", …)`), because the video route reads them from there.
