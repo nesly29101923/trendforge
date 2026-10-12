@@ -9,6 +9,7 @@ import { BriefForm } from "@/components/brief-form";
 import { compact } from "@/components/format";
 import { isEarlySignal } from "@/lib/trends";
 import { SampleVideos } from "@/components/sample-videos";
+import { TrendHashtagsCard } from "@/components/trend-hashtags";
 import { PublishPanel } from "@/components/publish-panel";
 import { ViralScorePanel } from "@/components/viral-score-panel";
 import { EarlySignalBadge, ErrorBox, MomentumBar, PlatformTags, Skeleton, StageBadge } from "@/components/ui";
@@ -125,6 +126,12 @@ export default function TrendDetail() {
               <Skeleton key={i} className="aspect-[9/16]" />
             ))}
           </div>
+        </section>
+      )}
+
+      {trend && (
+        <section className="mb-8">
+          <TrendHashtagsCard trendId={trend.id} />
         </section>
       )}
 

@@ -188,3 +188,20 @@ export const publishPlanSchema = {
   },
   required: ["hashtagSet", "captions", "firstComment", "coverText", "platforms", "timing", "firstHour", "avoid"],
 } as const;
+
+export const trendHashtagsSchema = {
+  type: "object",
+  properties: {
+    hashtags: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: { tag: str, role: { type: "string", enum: ["trend", "broad", "niche", "community"] }, why: str },
+        required: ["tag", "role", "why"],
+      },
+    },
+    caption: str,
+    tip: str,
+  },
+  required: ["hashtags", "caption", "tip"],
+} as const;
