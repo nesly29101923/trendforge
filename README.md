@@ -571,6 +571,7 @@ All routes return JSON. Errors: `{ error: string }` with status 4xx/5xx.
 | GET | `/api/trends/[id]/analyze` | — | cached `TrendAnalysis` or 404 | ✅ |
 | POST | `/api/trends/[id]/analyze` | — | `TrendAnalysis` (Gemini watches the top video; falls back to cover image, then metadata) | ✅ |
 | POST | `/api/create/guide` | `{ trendId, brief: BrandBrief }` | `FilmGuide` | ✅ |
+| POST | `/api/publish` | `{ trendId, brief, draftCaption?, draftHashtags?, concept? }` | `{ plan: PublishPlan, stats: HashtagStat[], insights: CaptionInsights }` | ✅ |
 | POST | `/api/score` | multipart `video`, `trendId`, `brandName?`, `product?` | `ViralScore` | ✅ |
 | POST | `/api/create/video/upload` | multipart `file` (image ≤10 MB) | `{ url }` → put in `brief.productImageUrl` | ✅ WS4 |
 | POST | `/api/create/video` | `{ trendId or trend, brief: BrandBrief, analysis?, quality?: "fast" \| "hero" }` | `VideoJob` (status `queued`) | ✅ WS4 |
@@ -593,3 +594,14 @@ The advertiser uploads a **draft video** on a trend page → Gemini watches it a
 - **expected views before vs after**: benchmark = median plays of the trend's top videos, scaled by `0.05 + 1.2 × (score/100)²`, shown as a ±50 % range. The jump from "before" to "after" is the stage moment.
 
 Large uploads: Vercel caps request bodies at ~4.5 MB, so **demo the Viral Score from `npm run dev` on the laptop** (no cap, up to 100 MB) or keep demo drafts under 4 MB.
+
+---
+
+## 15. Post Optimizer (hashtags, caption, how to share)
+
+Shown on every trend page and on both result pages (after a Film Guide or an AI video).
+
+1. **Hashtag data, no AI** (`lib/hashtags.ts`): every hashtag in today's scraped videos is ranked by median plays (60 %), engagement rate (30 %) and usage (10 %), and tagged `trend` / `broad` / `niche`.
+2. **Caption patterns, no AI**: from the best-performing videos: median caption length, median hashtag count, share that ask a question / use emoji / have a CTA, and the UTC hours the top videos were posted.
+3. **AI posting plan** (`lib/publish.ts`, Gemini, fed only the real numbers above): a 4–7 tag set with a role and a data-backed reason for each, 3 caption variants, a pinned first comment, cover text, per-platform versions (TikTok, Reels, Shorts with a searchable title), when to post, a first-hour engagement checklist and what to avoid.
+4. **Caption check**: if the user pastes their own caption/hashtags, it is scored 0–100 with fixes.

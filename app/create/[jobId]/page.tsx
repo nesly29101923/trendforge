@@ -6,6 +6,7 @@ import { useParams } from "next/navigation";
 import { session } from "@/components/api";
 import type { GuideSession, VideoSession } from "@/components/brief-form";
 import { GuideView } from "@/components/guide-view";
+import { PublishPanel } from "@/components/publish-panel";
 import { ErrorBox } from "@/components/ui";
 import { VideoResult } from "@/components/video-result";
 
@@ -39,6 +40,16 @@ export default function CreateResult() {
         )
       ) : (
         <VideoResult jobId={jobId} initial={video} />
+      )}
+
+      {ready && (guide || video) && (
+        <section className="no-print mt-8">
+          <PublishPanel
+            trendId={(guide ?? video)!.trend.id}
+            brief={(guide ?? video)!.brief}
+            concept={guide?.guide.concept ?? video?.job.storyboard.map((s) => s.prompt).join(" ").slice(0, 500)}
+          />
+        </section>
       )}
     </main>
   );

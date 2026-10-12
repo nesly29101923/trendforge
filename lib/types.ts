@@ -119,3 +119,37 @@ export interface ViralScore {
   fixes: { priority: "high" | "medium" | "low"; timecode?: string; fix: string; impact: string }[];
   expectedViews: { before: { low: number; high: number }; after: { low: number; high: number } };
 }
+
+export interface HashtagStat {
+  tag: string;
+  videos: number;               // scraped videos using it
+  trends: number;               // trends it appears in
+  medianPlays: number;
+  engagementRate: number;       // (likes+comments+shares)/plays across its videos
+  score: number;                // 0–100 relative strength
+  tier: "broad" | "trend" | "niche";
+}
+
+export interface CaptionInsights {
+  sampleSize: number;
+  medianLength: number;         // characters, hashtags excluded
+  medianHashtags: number;
+  questionShare: number;        // share of top captions that ask a question (0–1)
+  emojiShare: number;
+  ctaShare: number;             // share with a call to action ("comment", "follow", "link", "save"…)
+  bestHours: number[];          // UTC hours (0–23) when the best-performing videos were posted
+  topCaptions: { caption: string; plays: number }[];
+}
+
+export interface PublishPlan {
+  trendId: string;
+  hashtagSet: { tag: string; role: "trend" | "broad" | "niche" | "brand"; why: string }[];
+  captions: { style: string; text: string; why: string }[];
+  firstComment: string;
+  coverText: string;
+  platforms: { platform: "TikTok" | "Instagram Reels" | "YouTube Shorts"; title?: string; caption: string; tips: string[] }[];
+  timing: { when: string; why: string };
+  firstHour: string[];          // engagement actions in the first 60 minutes
+  avoid: string[];
+  captionCheck?: { score: number; verdict: string; fixes: string[] };   // only when the user pasted their own caption
+}
