@@ -1,5 +1,6 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import type { BrandBrief, Trend, TrendAnalysis, VideoJob } from "./types";
+import { PROMPT_NOTES } from "./audience";
 
 export type Storyboard = VideoJob["storyboard"];
 
@@ -50,7 +51,7 @@ export async function buildStoryboard(
   const prompt = `You write prompts for an AI video model that makes vertical 9:16 short-form ads.
 Trend: "${trend.title}" (type: ${trend.type}; hashtags: ${trend.hashtags.join(", ")}).
 ${analysis ? `How the trend works: ${analysis.summary} Hook: ${analysis.hook}. Structure: ${analysis.structure.map((s) => `${s.t} ${s.beat}`).join("; ")}.` : ""}
-Brand: ${brief.brandName}. Product: ${brief.product}. Audience: ${brief.audience}. Tone: ${brief.tone}. Goal: ${brief.goal}.
+Brand: ${brief.brandName}. Product: ${brief.product}. Audience: ${brief.audience}. Tone: ${brief.tone}. Goal: ${brief.goal}.${brief.creatorType && PROMPT_NOTES[brief.creatorType] ? `\n${PROMPT_NOTES[brief.creatorType]}` : ""}
 Write 1 to 3 consecutive shots totalling exactly ${totalSec} seconds that recreate the trend's format with this product.
 Each prompt is one dense paragraph: subject, action, camera angle and movement, lighting, setting, style, "vertical 9:16".
 No on-screen text, no logos, no real people's names, no copyrighted music. Return JSON only.`;

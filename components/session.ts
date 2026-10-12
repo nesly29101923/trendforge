@@ -11,4 +11,4 @@ export interface MakeState {
   guideError?: string;
 }
 
-export const makeKey = (trendId: string, b: BrandBrief) => `make:${trendId}:${b.brandName}:${b.product}`;
+export const makeKey = (trendId: string, b: BrandBrief) => `make:${trendId}:${b.brandName}:${b.product}:${b.creatorType ?? ""}`;

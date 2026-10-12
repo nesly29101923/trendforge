@@ -14,6 +14,7 @@ import { SampleVideos } from "@/components/sample-videos";
 import { PublishPanel } from "@/components/publish-panel";
 import { Button, ErrorNote, Skeleton, TopBar, WindowStrip } from "@/components/ui";
 import { ViralScorePanel } from "@/components/viral-score-panel";
+import { useWho } from "@/components/who";
 
 async function fetchTrend(id: string): Promise<Trend> {
   try {
@@ -29,6 +30,7 @@ export default function TrendPage() {
   const router = useRouter();
   const id = decodeURIComponent(useParams<{ id: string }>().id);
   const { brand, setBrand } = useBrand();
+  const { who } = useWho();
   const [trend, setTrend] = useState<Trend | null>(null);
   const [analysis, setAnalysis] = useState<TrendAnalysis | null>(null);
   const [trendError, setTrendError] = useState<string | null>(null);
@@ -144,7 +146,7 @@ export default function TrendPage() {
 
             {trend && (
               <section className="mt-10">
-                <PublishPanel trendId={trend.id} brief={brand ?? undefined} />
+                <PublishPanel trendId={trend.id} brief={brand ? { ...brand, creatorType: who ?? undefined } : undefined} />
               </section>
             )}
           </div>
@@ -154,7 +156,7 @@ export default function TrendPage() {
       {sheet && (
         <BrandSheet
           initial={brand ?? null}
-          title={sheet === "make" ? "Who is this for?" : "Your brand"}
+          title={sheet === "make" ? undefined : "Your brand"}
           submitLabel={sheet === "make" ? "Make it" : "Save"}
           onClose={() => setSheet(null)}
           onSave={(b) => {

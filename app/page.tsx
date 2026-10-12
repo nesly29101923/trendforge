@@ -3,15 +3,18 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import type { Trend } from "@/lib/types";
+import { CONTENT_KINDS, KINDS_FOR } from "@/lib/audience";
+import type { ContentKind, Trend } from "@/lib/types";
+import { KindChips, WhoPicker, type KindFilter } from "@/components/audience-picker";
 import { getJSON, postJSON } from "@/components/api";
 import { useBrand } from "@/components/brand";
 import { BrandSheet } from "@/components/brand-sheet";
 import { compact, postingWindow, timeAgo } from "@/components/format";
 import { displayName, useTrendNames } from "@/components/names";
 import { Button, Cover, ErrorNote, Skeleton, TopBar, cx } from "@/components/ui";
+import { useWho } from "@/components/who";
 
-function TrendTile({ trend, name, oneLiner, onMake }: { trend: Trend; name: string; oneLiner?: string; onMake: () => void }) {
+function TrendTile({ trend, name, oneLiner, kind, onMake }: { trend: Trend; name: string; oneLiner?: string; kind?: string; onMake: () => void }) {
   const w = postingWindow(trend);
   return (
     <div className="flex h-full flex-col">
@@ -29,7 +32,8 @@ function TrendTile({ trend, name, oneLiner, onMake }: { trend: Trend; name: stri
             {compact(trend.totalPlays)} plays
           </span>
         </Cover>
-        <h3 className="mt-2.5 font-semibold leading-snug group-hover:underline">{name}</h3>
+        {kind && <div className="mt-2.5 text-xs font-medium uppercase tracking-wide text-muted">{kind}</div>}
+        <h3 className={cx("font-semibold leading-snug group-hover:underline", kind ? "mt-0.5" : "mt-2.5")}>{name}</h3>
         {oneLiner && <p className="mt-0.5 line-clamp-2 text-sm text-ink-2">{oneLiner}</p>}
       </Link>
       <Button variant={w.open ? "primary" : "secondary"} className="mt-3 w-full" onClick={onMake}>
@@ -41,6 +45,9 @@ function TrendTile({ trend, name, oneLiner, onMake }: { trend: Trend; name: stri
 
 export default function Home() {
   const { brand, setBrand } = useBrand();
+  const { who, setWho } = useWho();
+  const [kinds, setKinds] = useState<Record<string, ContentKind>>({});
+  const [filter, setFilter] = useState<KindFilter>("all");
   const [trends, setTrends] = useState<Trend[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -59,6 +66,14 @@ export default function Home() {
       .catch((err) => setError(`Couldn't load trends: ${err.message}`));
   }, []);
 
+  // Kinds follow the trend list (a refresh can add new trends).
+  useEffect(() => {
+    if (trends?.length) getJSON<Record<string, ContentKind>>("/api/trends/kinds").then(setKinds).catch(() => {});
+  }, [trends]);
+
+  // Picking who you are switches to the trends made for you; "All" is always one tap away.
+  useEffect(() => setFilter(who ? "foryou" : "all"), [who]);
+
   async function refresh() {
     setRefreshing(true);
     setError(null);
@@ -71,11 +86,30 @@ export default function Home() {
     }
   }
 
-  // Trends you can still post first, closed windows last.
-  const sorted = useMemo(
-    () => (trends ? [...trends].sort((a, b) => Number(postingWindow(b).open) - Number(postingWindow(a).open) || b.momentumScore - a.momentumScore) : []),
-    [trends],
-  );
+  const forYou = useMemo(() => new Set<ContentKind>(who ? KINDS_FOR[who] : []), [who]);
+
+  const counts = useMemo(() => {
+    const c: Partial<Record<KindFilter, number>> = { all: trends?.length ?? 0 };
+    for (const t of trends ?? []) {
+      const k = kinds[t.id];
+      if (k) c[k] = (c[k] ?? 0) + 1;
+      if (forYou.has(k)) c.foryou = (c.foryou ?? 0) + 1;
+    }
+    if (who) c.foryou ??= 0;
+    return c;
+  }, [trends, kinds, forYou, who]);
+
+  // Trends you can still post first, then the ones that fit you, then momentum. Closed windows last.
+  const sorted = useMemo(() => {
+    const list = (trends ?? []).filter((t) => (filter === "all" ? true : filter === "foryou" ? forYou.has(kinds[t.id]) : kinds[t.id] === filter));
+    return list.sort(
+      (a, b) =>
+        Number(postingWindow(b).open) - Number(postingWindow(a).open) ||
+        Number(forYou.has(kinds[b.id])) - Number(forYou.has(kinds[a.id])) ||
+        b.momentumScore - a.momentumScore,
+    );
+  }, [trends, kinds, filter, forYou]);
+  const kindLabel = (t: Trend) => CONTENT_KINDS.find((k) => k.id === kinds[t.id])?.label;
   const updatedAt = trends?.reduce<string | null>((m, t) => (!m || t.updatedAt > m ? t.updatedAt : m), null);
 
   return (
@@ -101,7 +135,7 @@ export default function Home() {
         </section>
 
         <section ref={gridRef} className="scroll-mt-20 border-t border-line pt-10">
-          <header className="mb-8 flex flex-wrap items-end justify-between gap-4">
+          <header className="mb-6 flex flex-wrap items-end justify-between gap-4">
             <div>
               <h2 className="text-[26px] font-semibold leading-tight sm:text-[32px]">Trending today</h2>
               <p className="mt-1 text-ink-2">
@@ -115,6 +149,11 @@ export default function Home() {
               </Button>
             </div>
           </header>
+
+          <div className="mb-8 space-y-4">
+            <WhoPicker who={who} onChange={setWho} />
+            {trends && trends.length > 0 && <KindChips value={filter} onChange={setFilter} counts={counts} showForYou={!!who} />}
+          </div>
 
           {error && (
             <div className="mb-6">
@@ -137,10 +176,20 @@ export default function Home() {
                     trend={t}
                     name={displayName(t, names)}
                     oneLiner={names[t.id]?.oneLiner}
+                    kind={kindLabel(t)}
                     onMake={() => (brand ? make(t.id) : setSheet({ mode: "make", trendId: t.id }))}
                   />
                 ))}
           </div>
+
+          {trends && trends.length > 0 && sorted.length === 0 && (
+            <div className="py-16 text-center">
+              <p className="font-medium">Nothing in this category today.</p>
+              <Button variant="secondary" className="mt-4" onClick={() => setFilter("all")}>
+                See all trends
+              </Button>
+            </div>
+          )}
 
           {trends?.length === 0 && (
             <div className="py-16 text-center">
@@ -156,7 +205,7 @@ export default function Home() {
       {sheet && (
         <BrandSheet
           initial={brand ?? null}
-          title={sheet.mode === "edit" ? "Your brand" : "Who are you making ads for?"}
+          title={sheet.mode === "edit" ? "Your brand" : undefined}
           submitLabel={sheet.mode === "make" ? "Make it" : sheet.mode === "start" ? "Show me trends" : "Save"}
           onClose={() => setSheet(null)}
           onSave={(b) => {

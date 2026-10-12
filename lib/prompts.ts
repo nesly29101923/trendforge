@@ -1,4 +1,5 @@
 import type { BrandBrief, Trend, TrendAnalysis } from "./types";
+import { PROMPT_NOTES } from "./audience";
 
 const compact = (n: number) =>
   Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 1 }).format(n);
@@ -100,7 +101,7 @@ BRAND BRIEF
 - Product: ${brief.product}
 - Audience: ${brief.audience}
 - Tone: ${brief.tone}
-- Goal: ${brief.goal}
+- Goal: ${brief.goal}${brief.creatorType && PROMPT_NOTES[brief.creatorType] ? `\n${PROMPT_NOTES[brief.creatorType]}` : ""}
 ${brief.productImageUrl ? "- The brand has a product photo; the product's look matters, feature it clearly.\n" : ""}
 ${categoryInstructions[analysis.category]}
 

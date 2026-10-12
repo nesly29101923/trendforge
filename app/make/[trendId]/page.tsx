@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import type { FilmGuide, Trend, VideoJob } from "@/lib/types";
 import { getJSON, postJSON, session } from "@/components/api";
@@ -11,6 +11,7 @@ import { displayName, useTrendNames } from "@/components/names";
 import { PublishPanel } from "@/components/publish-panel";
 import { makeKey, type MakeState } from "@/components/session";
 import { Button, ErrorNote, Panel, Spinner, TopBar } from "@/components/ui";
+import { useWho } from "@/components/who";
 
 const POLL_MS = 3000;
 const started = new Set<string>(); // survives React's double-mount in dev, so we never pay for a video twice
@@ -18,7 +19,9 @@ const started = new Set<string>(); // survives React's double-mount in dev, so w
 export default function MakePage() {
   const router = useRouter();
   const trendId = decodeURIComponent(useParams<{ trendId: string }>().trendId);
-  const { brand } = useBrand();
+  const { brand: savedBrand } = useBrand();
+  const { who } = useWho();
+  const brand = useMemo(() => (savedBrand && who ? { ...savedBrand, creatorType: who } : savedBrand), [savedBrand, who]);
   const [trend, setTrend] = useState<Trend | null>(null);
   const [state, setState] = useState<MakeState>({});
   const [elapsed, setElapsed] = useState(0);

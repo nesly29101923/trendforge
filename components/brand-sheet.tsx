@@ -1,9 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { BRIEF_COPY } from "@/lib/audience";
 import type { BrandBrief } from "@/lib/types";
+import { WhoPicker } from "./audience-picker";
 import { uploadFile } from "./api";
 import { Button, Spinner, cx } from "./ui";
+import { useWho } from "./who";
 
 const TONES: BrandBrief["tone"][] = ["fun", "premium", "edgy", "wholesome", "informative"];
 
@@ -19,7 +22,7 @@ export function BrandSheet({
   onClose,
 }: {
   initial: BrandBrief | null;
-  title: string;
+  title?: string;
   submitLabel: string;
   onSave: (b: BrandBrief) => void;
   onClose: () => void;
@@ -29,6 +32,9 @@ export function BrandSheet({
     initial?.productImageUrl ? { preview: initial.productImageUrl, state: "done" } : null,
   );
   const fileRef = useRef<HTMLInputElement>(null);
+  const { who, setWho } = useWho();
+  const copy = who ? BRIEF_COPY[who] : null;
+  const heading = title ?? copy?.title ?? "Who are you making ads for?";
   const set = <K extends keyof BrandBrief>(k: K, v: BrandBrief[K]) => setB((x) => ({ ...x, [k]: v }));
   const ready = b.brandName.trim() && b.product.trim() && photo?.state !== "uploading";
 
@@ -55,7 +61,7 @@ export function BrandSheet({
       <form
         role="dialog"
         aria-modal="true"
-        aria-label={title}
+        aria-label={heading}
         onClick={(e) => e.stopPropagation()}
         onSubmit={(e) => {
           e.preventDefault();
@@ -63,13 +69,15 @@ export function BrandSheet({
         }}
         className="w-full max-w-md rounded-t-2xl bg-surface p-6 sm:rounded-2xl"
       >
-        <h2 className="text-xl font-semibold">{title}</h2>
+        <h2 className="text-xl font-semibold">{heading}</h2>
         <p className="mt-1 text-sm text-ink-2">Asked once. We&apos;ll remember it for every trend.</p>
 
+        <WhoPicker who={who} onChange={setWho} className="mt-4" />
+
         <div className="mt-5 space-y-3">
-          <input className={field} placeholder="Brand name" aria-label="Brand name" autoFocus value={b.brandName} onChange={(e) => set("brandName", e.target.value)} />
-          <input className={field} placeholder="What you're promoting, e.g. sparkling energy drink" aria-label="Product" value={b.product} onChange={(e) => set("product", e.target.value)} />
-          <input className={field} placeholder="Who it's for (optional)" aria-label="Audience" value={b.audience} onChange={(e) => set("audience", e.target.value)} />
+          <input className={field} placeholder={copy?.name ?? "Brand name"} aria-label="Brand name" autoFocus value={b.brandName} onChange={(e) => set("brandName", e.target.value)} />
+          <input className={field} placeholder={copy?.product ?? "What you're promoting, e.g. sparkling energy drink"} aria-label="Product" value={b.product} onChange={(e) => set("product", e.target.value)} />
+          <input className={field} placeholder={copy?.audience ?? "Who it's for (optional)"} aria-label="Audience" value={b.audience} onChange={(e) => set("audience", e.target.value)} />
         </div>
 
         <div className="mt-4 flex flex-wrap gap-1.5" role="radiogroup" aria-label="Tone">

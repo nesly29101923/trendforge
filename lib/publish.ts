@@ -3,6 +3,7 @@ import { generateJson } from "./gemini";
 import { captionInsights, hashtagStats } from "./hashtags";
 import { publishPlanSchema } from "./schemas";
 import type { BrandBrief, CaptionInsights, HashtagStat, PublishPlan, Trend } from "./types";
+import { PROMPT_NOTES } from "./audience";
 
 const fmt = (n: number) => Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 1 }).format(n);
 const pct = (n: number) => `${Math.round(n * 100)}%`;
@@ -21,7 +22,7 @@ function prompt(trend: Trend, stats: HashtagStat[], insights: CaptionInsights, i
 Trend: "${trend.title}" (type ${trend.type}, stage ${trend.stage}, momentum ${trend.momentumScore}/100${trend.soundTitle ? `, sound "${trend.soundTitle}"` : ""}).
 ${analysisSummary ? `How the trend works: ${analysisSummary}` : ""}
 ${concept ? `Their video concept: ${concept}` : ""}
-Brand: ${brief.brandName}. Product: ${brief.product}. Audience: ${brief.audience || "general"}. Tone: ${brief.tone}. Goal: ${brief.goal}.
+Brand: ${brief.brandName}. Product: ${brief.product}. Audience: ${brief.audience || "general"}. Tone: ${brief.tone}. Goal: ${brief.goal}.${brief.creatorType && PROMPT_NOTES[brief.creatorType] ? `\n${PROMPT_NOTES[brief.creatorType]}` : ""}
 Write everything in language "${brief.language ?? "en"}" (keep hashtags in the form people actually search).
 
 REAL DATA scraped today (use it, do not invent stats):

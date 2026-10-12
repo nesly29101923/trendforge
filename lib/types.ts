@@ -66,7 +66,11 @@ export interface BrandBrief {
   goal: "awareness" | "engagement" | "sales";
   productImageUrl?: string;     // uploaded to fal storage
   language?: string;            // default "en"
+  creatorType?: CreatorType;    // who is making the content; tailors prompts
 }
+
+export type CreatorType = "creator" | "agency" | "seller";
+export type ContentKind = TrendAnalysis["category"];
 
 export interface FilmGuide {           // Option A
   trendId: string;
